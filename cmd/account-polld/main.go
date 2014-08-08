@@ -77,6 +77,7 @@ func main() {
 }
 
 func monitorAccounts(postWatch chan *PostWatch) {
+	accounts.StartGlibMainLoop()
 	watcher := accounts.NewWatcher(SERVICETYPE_POLL)
 	mgr := make(map[uint]*AccountManager)
 L:

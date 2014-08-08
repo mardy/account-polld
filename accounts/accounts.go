@@ -55,7 +55,7 @@ var (
 	authChannelsLock sync.Mutex
 )
 
-func startMainLoop() {
+func StartGlibMainLoop() {
 	mainLoopOnce.Do(func() {
 		mainLoop := C.g_main_loop_new(nil, C.gboolean(1))
 		go C.g_main_loop_run(mainLoop)
@@ -74,8 +74,6 @@ func NewWatcher(serviceType string) *Watcher {
 	authChannelsLock.Lock()
 	authChannels[w.watcher] = ch
 	authChannelsLock.Unlock()
-
-	startMainLoop()
 
 	return w
 }
