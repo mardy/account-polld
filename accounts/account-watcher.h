@@ -38,4 +38,10 @@ AccountWatcher *account_watcher_new(const char *service_type,
 
 void account_watcher_refresh(AccountWatcher *watcher, unsigned int account_id);
 
+typedef void (*AccountCreatedCallback)(AccountWatcher *watcher,
+                                       unsigned int account_id,
+                                       const char *service_name,
+                                       void *user_data);
+
+
 #endif

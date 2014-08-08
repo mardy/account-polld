@@ -33,8 +33,14 @@ import (
 )
 
 type Watcher struct {
-	C       <-chan AuthData
-	watcher *C.AccountWatcher
+	C         <-chan AuthData
+	AccountCh <-chan AccountData
+	watcher   *C.AccountWatcher
+}
+
+type AccountData struct {
+	AccountId   uint
+	ServiceName string
 }
 
 type AuthData struct {
@@ -50,9 +56,11 @@ type AuthData struct {
 }
 
 var (
-	mainLoopOnce     sync.Once
-	authChannels     = make(map[*C.AccountWatcher]chan<- AuthData)
-	authChannelsLock sync.Mutex
+	mainLoopOnce        sync.Once
+	authChannels        = make(map[*C.AccountWatcher]chan<- AuthData)
+	authChannelsLock    sync.Mutex
+	accountChannels     = make(map[*C.AccountWatcher]chan<- AccountData)
+	accountChannelsLock sync.Mutex
 )
 
 func StartGlibMainLoop() {
@@ -74,6 +82,12 @@ func NewWatcher(serviceType string) *Watcher {
 	authChannelsLock.Lock()
 	authChannels[w.watcher] = ch
 	authChannelsLock.Unlock()
+	// account stuff
+	accountCh := make(chan AccountData)
+	w.AccountCh = accountCh
+	accountChannelsLock.Lock()
+	accountChannels[w.watcher] = accountCh
+	accountChannelsLock.Unlock()
 
 	return w
 }
@@ -117,5 +131,23 @@ func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char,
 	if tokenSecret != nil {
 		data.TokenSecret = C.GoString(tokenSecret)
 	}
+	ch <- data
+}
+
+//export accountCallback
+func accountCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char, userData unsafe.Pointer) {
+	// Ideally the first argument would be of type
+	// *C.AccountWatcher, but that fails with Go 1.2.
+	accountChannelsLock.Lock()
+	ch := accountChannels[(*C.AccountWatcher)(watcher)]
+	accountChannelsLock.Unlock()
+	if ch == nil {
+		// Log the error
+		return
+	}
+
+	var data AccountData
+	data.AccountId = uint(accountId)
+	data.ServiceName = C.GoString(serviceName)
 	ch <- data
 }

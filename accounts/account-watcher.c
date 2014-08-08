@@ -37,9 +37,11 @@ struct _AccountWatcher {
     GHashTable *services;
 
     gulong enabled_event_signal_id;
+    gulong created_event_signal_id;
     gulong account_deleted_signal_id;
 
     AccountEnabledCallback callback;
+    AccountCreatedCallback created_callback;
     void *user_data;
 };
 
@@ -231,6 +233,36 @@ static void account_watcher_enabled_event_cb(
     g_object_unref(account);
 }
 
+static void account_watcher_created_event_cb(
+    AgManager *manager, AgAccountId account_id, AccountWatcher *watcher) {
+    trace("created-event for %u\n", account_id);
+    if (g_hash_table_contains(watcher->services, GUINT_TO_POINTER(account_id))) {
+        /* We are already tracking this account */
+        return;
+    }
+    AgAccount *account = ag_manager_get_account(manager, account_id);
+    if (account == NULL) {
+        /* There was a problem looking up the account */
+        return;
+    }
+    /* Since our AgManager is restricted to a particular service type,
+     * pick the first service for the account. */
+    GList *services = ag_account_list_services(account);
+    if (services != NULL) {
+        AgService *service = services->data;
+        AgAccountService *account_service = ag_account_service_new(
+            account, service);
+        const char *service_name = ag_service_get_name(service);
+        watcher->created_callback(watcher,
+                                  account_id,
+                                  service_name,
+                                  watcher->user_data);
+        g_object_unref(account_service);
+    }
+    ag_service_list_free(services);
+    g_object_unref(account);
+}
+
 static void account_watcher_account_deleted_cb(
     AgManager *manager, AgAccountId account_id, AccountWatcher *watcher) {
     trace("account-deleted for %u\n", account_id);
@@ -246,6 +278,9 @@ static gboolean account_watcher_setup(void *user_data) {
     watcher->enabled_event_signal_id = g_signal_connect(
         watcher->manager, "enabled-event",
         G_CALLBACK(account_watcher_enabled_event_cb), watcher);
+    watcher->created_event_signal_id = g_signal_connect(
+        watcher->manager, "account-created",
+        G_CALLBACK(account_watcher_created_event_cb), watcher);
     watcher->account_deleted_signal_id = g_signal_connect(
         watcher->manager, "account-deleted",
         G_CALLBACK(account_watcher_account_deleted_cb), watcher);
