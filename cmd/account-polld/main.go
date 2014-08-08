@@ -81,36 +81,42 @@ func monitorAccounts(postWatch chan *PostWatch) {
 	watcher := accounts.NewWatcher(SERVICETYPE_POLL)
 	mgr := make(map[uint]*AccountManager)
 L:
-	for data := range watcher.C {
-		if account, ok := mgr[data.AccountId]; ok {
-			if data.Enabled {
-				log.Println("New account data for existing account with id", data.AccountId)
-				account.updateAuthData(data)
-			} else {
-				account.Delete()
-				delete(mgr, data.AccountId)
+	for {
+		select {
+		case data := <-watcher.C:
+			if account, ok := mgr[data.AccountId]; ok {
+				if data.Enabled {
+					log.Println("New account data for existing account with id", data.AccountId)
+					account.updateAuthData(data)
+				} else {
+					account.Delete()
+					delete(mgr, data.AccountId)
+				}
+			} else if data.Enabled {
+				var plugin plugins.Plugin
+				switch data.ServiceName {
+				case SERVICENAME_GMAIL:
+					log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
+					plugin = gmail.New()
+				case SERVICENAME_FACEBOOK:
+					// This is just stubbed until the plugin exists.
+					log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
+					plugin = facebook.New()
+				case SERVICENAME_TWITTER:
+					// This is just stubbed until the plugin exists.
+					log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
+					plugin = twitter.New()
+				default:
+					log.Println("Unhandled account with id", data.AccountId, "for", data.ServiceName)
+					break L
+				}
+				mgr[data.AccountId] = NewAccountManager(watcher, postWatch, plugin)
+				mgr[data.AccountId].updateAuthData(data)
+				go mgr[data.AccountId].Loop()
 			}
-		} else if data.Enabled {
-			var plugin plugins.Plugin
-			switch data.ServiceName {
-			case SERVICENAME_GMAIL:
-				log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
-				plugin = gmail.New()
-			case SERVICENAME_FACEBOOK:
-				// This is just stubbed until the plugin exists.
-				log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
-				plugin = facebook.New()
-			case SERVICENAME_TWITTER:
-				// This is just stubbed until the plugin exists.
-				log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
-				plugin = twitter.New()
-			default:
-				log.Println("Unhandled account with id", data.AccountId, "for", data.ServiceName)
-				continue L
-			}
-			mgr[data.AccountId] = NewAccountManager(watcher, postWatch, plugin)
-			mgr[data.AccountId].updateAuthData(data)
-			go mgr[data.AccountId].Loop()
+		case data := <-watcher.AccountCh:
+			log.Println("New Account:", data.AccountId, "for", data.ServiceName)
+			break L
 		}
 	}
 }
