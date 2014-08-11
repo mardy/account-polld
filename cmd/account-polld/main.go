@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"log"
 
@@ -116,6 +117,13 @@ L:
 			}
 		case data := <-watcher.AccountCh:
 			log.Println("New Account:", data.AccountId, "for", data.ServiceName)
+			summary := "new account blah blah"
+			body := "a new account was created, please enable notifications for it."
+			epoch := time.Now().Unix()
+			action := "system://settings/account"
+			pushMsg := *plugins.NewStandardPushMessage(summary, body, action, "", epoch)
+			msgs := []plugins.PushMessage{pushMsg}
+			postWatch <- &PostWatch{messages: msgs, appId: "ubuntu-system-settings"}
 			break L
 		}
 	}
