@@ -135,7 +135,7 @@ func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char,
 }
 
 //export accountCallback
-func accountCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char, userData unsafe.Pointer) {
+func accountCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char) {
 	// Ideally the first argument would be of type
 	// *C.AccountWatcher, but that fails with Go 1.2.
 	accountChannelsLock.Lock()

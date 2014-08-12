@@ -22,7 +22,7 @@
 
 #include "account-watcher.h"
 
-/* #define DEBUG */
+#define DEBUG
 #ifdef DEBUG
 #  define trace(...) fprintf(stderr, __VA_ARGS__)
 #else
@@ -236,10 +236,6 @@ static void account_watcher_enabled_event_cb(
 static void account_watcher_created_event_cb(
     AgManager *manager, AgAccountId account_id, AccountWatcher *watcher) {
     trace("created-event for %u\n", account_id);
-    if (g_hash_table_contains(watcher->services, GUINT_TO_POINTER(account_id))) {
-        /* We are already tracking this account */
-        return;
-    }
     AgAccount *account = ag_manager_get_account(manager, account_id);
     if (account == NULL) {
         /* There was a problem looking up the account */
@@ -249,17 +245,18 @@ static void account_watcher_created_event_cb(
      * pick the first service for the account. */
     GList *services = ag_account_list_services(account);
     if (services != NULL) {
+        trace("created-event: services != NULL\n");
         AgService *service = services->data;
-        AgAccountService *account_service = ag_account_service_new(
-            account, service);
         const char *service_name = ag_service_get_name(service);
+        trace("created-event|calling created callback: %s\n", service_name);
         watcher->created_callback(watcher,
                                   account_id,
-                                  service_name,
-                                  watcher->user_data);
-        g_object_unref(account_service);
-    }
+                                  service_name);
+        trace("created-event|callback call done\n");
+    } 
+    trace("created-event|freeing services\n");
     ag_service_list_free(services);
+    trace("created-event|freeing account\n");
     g_object_unref(account);
 }
 
