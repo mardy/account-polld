@@ -245,18 +245,13 @@ static void account_watcher_created_event_cb(
      * pick the first service for the account. */
     GList *services = ag_account_list_services(account);
     if (services != NULL) {
-        trace("created-event: services != NULL\n");
         AgService *service = services->data;
         const char *service_name = ag_service_get_name(service);
-        trace("created-event|calling created callback: %s\n", service_name);
         watcher->created_callback(watcher,
                                   account_id,
                                   service_name);
-        trace("created-event|callback call done\n");
     } 
-    trace("created-event|freeing services\n");
     ag_service_list_free(services);
-    trace("created-event|freeing account\n");
     g_object_unref(account);
 }
 
@@ -296,6 +291,7 @@ static gboolean account_watcher_setup(void *user_data) {
 
 AccountWatcher *account_watcher_new(const char *service_type,
                                     AccountEnabledCallback callback,
+                                    AccountCreatedCallback created_callback,
                                     void *user_data) {
     AccountWatcher *watcher = g_new0(AccountWatcher, 1);
 
@@ -303,6 +299,7 @@ AccountWatcher *account_watcher_new(const char *service_type,
     watcher->services = g_hash_table_new_full(
         g_direct_hash, g_direct_equal, NULL, (GDestroyNotify)account_info_free);
     watcher->callback = callback;
+    watcher->created_callback = created_callback;
     watcher->user_data = user_data;
 
     /* Make sure main setup occurs within the mainloop thread */

@@ -19,6 +19,7 @@ AccountWatcher *watch_for_service_type(const char *service_type) {
     }
 
     AccountWatcher *watcher = account_watcher_new(
-        service_type, (AccountEnabledCallback)authCallback, NULL);
+        service_type, (AccountEnabledCallback)authCallback, 
+        (AccountCreatedCallback)accountCallback, NULL);
     return watcher;
 }
