@@ -120,7 +120,7 @@ L:
 			summary := "new account blah blah"
 			body := "a new account was created, please enable notifications for it."
 			epoch := time.Now().Unix()
-			action := "system://settings/account"
+			action := "settings://personal/online-accounts"
 			pushMsg := *plugins.NewStandardPushMessage(summary, body, action, "", epoch)
 			msgs := []plugins.PushMessage{pushMsg}
 			postWatch <- &PostWatch{messages: msgs, appId: "_ubuntu-system-settings"}
