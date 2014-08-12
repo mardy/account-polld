@@ -5,8 +5,6 @@ export DH_OPTIONS
 export DH_GOPKG := launchpad.net/account-polld
 export DH_GOLANG_INSTALL_ALL := 1
 
-DEB_HOST_ARCH := $(shell dpkg-architecture -qDEB_HOST_ARCH)
-
 %:
 	dh $@ \
 		--buildsystem=golang \
@@ -16,17 +14,11 @@ DEB_HOST_ARCH := $(shell dpkg-architecture -qDEB_HOST_ARCH)
 
 override_dh_auto_install:
 	dh_auto_install -O--buildsystem=golang
-	mkdir -p ${CURDIR}/debian/account-polld/usr/lib/account-polld
-	mv \
-		${CURDIR}/debian/account-polld/usr/bin/account-polld \
-		${CURDIR}/debian/account-polld/usr/lib/account-polld
 	rm \
 		${CURDIR}/debian/account-polld/usr/bin/account-watcher-test
 	# all our libs are private
 	rm -r \
 		${CURDIR}/debian/account-polld/usr/share/gocode
-	rmdir \
-		${CURDIR}/debian/account-polld/usr/bin
 	# setup online accounts service files
 	mkdir -p \
 		${CURDIR}/debian/account-polld/usr/share/accounts/applications \
@@ -41,6 +33,16 @@ override_dh_auto_install:
 		${CURDIR}/debian/account-polld/usr/share/accounts/service_types/
 	cp ${CURDIR}/data/account-polld.desktop \
 		${CURDIR}/debian/account-polld/usr/share/applications/
+	# translations
+	appname=account-polld; \
+	for pofile in po/*.po; do \
+		pofilename="$${pofile##*/}"; \
+		langcode="$${pofilename%.*}"; \
+		localedir="debian/$$appname/usr/share/locale/$$langcode/LC_MESSAGES"; \
+		mkdir -p $$localedir; \
+		mofile="$$localedir/$$appname.mo"; \
+		msgfmt -o $$mofile $$pofile; \
+	done
 
 override_dh_strip:
-	echo "Skipping strip"
+	echo "Skipping strip (LP: #1318027)"

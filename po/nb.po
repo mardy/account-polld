@@ -7,30 +7,54 @@ msgid ""
 msgstr ""
 "Project-Id-Version: account-polld\n"
 "Report-Msgid-Bugs-To: FULL NAME <EMAIL@ADDRESS>\n"
-"POT-Creation-Date: 2014-08-01 12:12-0300\n"
-"PO-Revision-Date: 2014-08-04 12:09+0000\n"
+"POT-Creation-Date: 2014-08-11 15:35-0300\n"
+"PO-Revision-Date: 2014-08-08 09:27+0000\n"
 "Last-Translator: Åka Sikrom <Unknown>\n"
 "Language-Team: Norwegian Bokmal <nb@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Launchpad-Export-Date: 2014-08-05 06:48+0000\n"
-"X-Generator: Launchpad (build 17147)\n"
+"X-Launchpad-Export-Date: 2014-08-12 06:47+0000\n"
+"X-Generator: Launchpad (build 17156)\n"
+
+#. TRANSLATORS: The first %s refers to the twitter user's Name, the second %s to the username.
+#: plugins/twitter/twitter.go:113 plugins/twitter/twitter.go:170
+#, c-format
+msgid "%s. @%s"
+msgstr "%s (@%s)"
+
+#. TRANSLATORS: This represents a notification summary about more twitter mentions available
+#: plugins/twitter/twitter.go:128
+msgid "Multiple more mentions"
+msgstr "Nevnt i flere innlegg"
+
+#. TRANSLATORS: This represents a notification body with the comma separated twitter usernames
+#. TRANSLATORS: This represents a notification body with the comma separated facebook usernames
+#: plugins/twitter/twitter.go:130 plugins/twitter/twitter.go:187
+#: plugins/facebook/facebook.go:172
+#, c-format
+msgid "From %s"
+msgstr "Fra %s"
+
+#. TRANSLATORS: This represents a notification summary about more twitter direct messages available
+#: plugins/twitter/twitter.go:185
+msgid "Multiple direct messages available"
+msgstr "Flere direktemeldinger er tilgjengelig"
 
 #. TRANSLATORS: the %s is an appended "from" corresponding to an specific email thread
-#: plugins/gmail/gmail.go:105
+#: plugins/gmail/gmail.go:153
 #, c-format
 msgid ", %s"
 msgstr ", %s"
 
 #. TRANSLATORS: the %s is the "from" header corresponding to a specific email
-#: plugins/gmail/gmail.go:108
+#: plugins/gmail/gmail.go:156
 #, c-format
 msgid "%s"
 msgstr "%s"
 
 #. TRANSLATORS: the first %s refers to the email "subject", the second %s refers "from"
-#: plugins/gmail/gmail.go:110
+#: plugins/gmail/gmail.go:158
 #, c-format
 msgid ""
 "%s\n"
@@ -39,24 +63,30 @@ msgstr ""
 "%s\n"
 "%s"
 
-#. TRANSLATORS: The first %s refers to the twitter user's Name, the second %s to the username.
-#: plugins/twitter/twitter.go:110 plugins/twitter/twitter.go:165
+#. TRANSLATORS: This represents a notification summary about more unread emails
+#: plugins/gmail/gmail.go:176
+msgid "More unread emails available"
+msgstr "Flere uleste e-postmeldinger tilgjengelig"
+
+#. TRANSLATORS: the first %d refers to approximate additionl email message count
+#: plugins/gmail/gmail.go:180
 #, c-format
-msgid "%s. @%s"
-msgstr "%s (@%s)"
+msgid "You have an approximate of %d additional unread messages"
+msgstr "Du har cirka %d andre uleste meldinger"
 
-#. TRANSLATORS: This represents a notification summary about more twitter mentions available
-#: plugins/twitter/twitter.go:124
-msgid "Multiple more mentions"
-msgstr "Nevnt i flere innlegg"
+#. TRANSLATORS: This represents a notification summary about more facebook notifications
+#: plugins/facebook/facebook.go:170
+msgid "Multiple more notifications"
+msgstr ""
 
-#. TRANSLATORS: This represents a notification body with the comma separated twitter usernames
-#: plugins/twitter/twitter.go:126 plugins/twitter/twitter.go:181
-#, c-format
-msgid "From %s"
-msgstr "Fra %s"
+#: data/account-polld.desktop.tr.h:1
+msgid "Notifications"
+msgstr "Varslinger"
 
-#. TRANSLATORS: This represents a notification summary about more twitter direct messages available
-#: plugins/twitter/twitter.go:179
-msgid "Multiple direct messages available"
-msgstr "Flere direktemeldinger er tilgjengelig"
+#: data/account-polld.application.tr.h:1
+msgid "Account Polling"
+msgstr "Kontoprøving"
+
+#: data/account-polld.application.tr.h:2
+msgid "Receive notifications for this account"
+msgstr "Få varslinger om denne kontoen"

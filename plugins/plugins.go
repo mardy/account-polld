@@ -18,14 +18,20 @@
 package plugins
 
 import (
+	"bufio"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
+	"reflect"
 
 	"launchpad.net/account-polld/accounts"
+	"launchpad.net/go-xdg/v0"
 )
 
 func init() {
-	cmdName = os.Args[0]
+	cmdName = filepath.Base(os.Args[0])
 }
 
 // Plugin is an interface which the plugins will adhere to for the poll
@@ -163,6 +169,64 @@ const (
 var ErrTokenExpired = errors.New("Token expired")
 
 var cmdName string
+
+// Persist stores the plugins data in a common location to a json file
+// from which it can recover later
+func Persist(pluginName string, accountId uint, data interface{}) (err error) {
+	var p string
+	defer func() {
+		if err != nil && p != "" {
+			os.Remove(p)
+		}
+	}()
+	p, err = xdg.Data.Ensure(filepath.Join(cmdName, fmt.Sprintf("%s-%d.json", pluginName, accountId)))
+	if err != nil {
+		return err
+	}
+	file, err := os.Create(p)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	w := bufio.NewWriter(file)
+	defer w.Flush()
+	jsonWriter := json.NewEncoder(w)
+	if err := jsonWriter.Encode(data); err != nil {
+		return err
+	}
+	return nil
+}
+
+// FromPersist restores the plugins data from a common location which
+// was stored in a json file
+func FromPersist(pluginName string, accountId uint, data interface{}) (err error) {
+	if reflect.ValueOf(data).Kind() != reflect.Ptr {
+		return errors.New("decode target is not a pointer")
+	}
+	var p string
+	defer func() {
+		if err != nil {
+			if p != "" {
+				os.Remove(p)
+			}
+		}
+	}()
+	p, err = xdg.Data.Find(filepath.Join(cmdName, fmt.Sprintf("%s-%d.json", pluginName, accountId)))
+	if err != nil {
+		return err
+	}
+	file, err := os.Open(p)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	jsonReader := json.NewDecoder(file)
+	if err := jsonReader.Decode(&data); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // DefaultSound returns the path to the default sound for a Notification
 func DefaultSound() string {

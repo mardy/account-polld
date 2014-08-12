@@ -1,3 +1,24 @@
+account-polld (0.1+14.10.20140811.1-0ubuntu1) utopic; urgency=low
+
+  [ CI bot ]
+  * Resync trunk
+
+  [ Sergio Schvezov ]
+  * Persist gmail reported ids and recover on boot
+  * Facebook pretty notifications, persistence (with multiple account
+    support)
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Mon, 11 Aug 2014 18:48:53 +0000
+
+account-polld (0.1+14.10.20140806.1-0ubuntu1) utopic; urgency=low
+
+  [ Sergio Schvezov ]
+  * Translation fixes
+  * Packaging fixes: remove host arch from debian/rules, install to bin
+    instead of lib; start only when the push client session is available
+
+ -- Ubuntu daily release <ps-jenkins@lists.canonical.com>  Wed, 06 Aug 2014 19:46:59 +0000
+
 account-polld (0.1+14.10.20140806-0ubuntu1) utopic; urgency=low
 
   [ Sergio Schvezov ]

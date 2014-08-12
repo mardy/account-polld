@@ -98,11 +98,11 @@ L:
 				switch data.ServiceName {
 				case SERVICENAME_GMAIL:
 					log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
-					plugin = gmail.New()
+					plugin = gmail.New(data.AccountId)
 				case SERVICENAME_FACEBOOK:
 					// This is just stubbed until the plugin exists.
 					log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
-					plugin = facebook.New()
+					plugin = facebook.New(data.AccountId)
 				case SERVICENAME_TWITTER:
 					// This is just stubbed until the plugin exists.
 					log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)

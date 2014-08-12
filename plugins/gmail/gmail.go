@@ -39,24 +39,60 @@ const (
 	gmailDispatchUrl = "https://mail.google.com/mail/mu/mp/#cv/priority/^smartlabel_%s/%s"
 	// this means 3 individual messages + 1 bundled notification.
 	individualNotificationsLimit = 2
+	pluginName                   = "gmail"
 )
+
+type reportedIdMap map[string]time.Time
 
 var baseUrl, _ = url.Parse("https://www.googleapis.com/gmail/v1/users/me/")
 
 // timeDelta defines how old messages can be to be reported.
 var timeDelta = time.Duration(time.Hour * 24)
 
+// trackDelta defines how old messages can be before removed from tracking
+var trackDelta = time.Duration(time.Hour * 24 * 7)
+
 type GmailPlugin struct {
 	// reportedIds holds the messages that have already been notified. This
 	// approach is taken against timestamps as it avoids needing to call
 	// get on the message.
-	//
-	// TODO determine if persisting the list to avoid renotification on reboot.
-	reportedIds map[string]bool
+	reportedIds reportedIdMap
+	accountId   uint
 }
 
-func New() *GmailPlugin {
-	return &GmailPlugin{}
+func idsFromPersist(accountId uint) (ids reportedIdMap, err error) {
+	err = plugins.FromPersist(pluginName, accountId, &ids)
+	if err != nil {
+		return nil, err
+	}
+	// discard old ids
+	timestamp := time.Now()
+	for k, v := range ids {
+		delta := timestamp.Sub(v)
+		if delta > trackDelta {
+			log.Print("gmail plugin ", accountId, ": deleting ", k, " as ", delta, " is greater than ", trackDelta)
+			delete(ids, k)
+		}
+	}
+	return ids, nil
+}
+
+func (ids reportedIdMap) persist(accountId uint) (err error) {
+	err = plugins.Persist(pluginName, accountId, ids)
+	if err != nil {
+		log.Print("gmail plugin ", accountId, ": failed to save state: ", err)
+	}
+	return nil
+}
+
+func New(accountId uint) *GmailPlugin {
+	reportedIds, err := idsFromPersist(accountId)
+	if err != nil {
+		log.Print("gmail plugin ", accountId, ": cannot load previous state from storage: ", err)
+	} else {
+		log.Print("gmail plugin ", accountId, ": last state loaded from storage")
+	}
+	return &GmailPlugin{reportedIds: reportedIds, accountId: accountId}
 }
 
 func (p *GmailPlugin) ApplicationId() plugins.ApplicationId {
@@ -93,7 +129,8 @@ func (p *GmailPlugin) Poll(authData *accounts.AuthData) ([]plugins.PushMessage, 
 }
 
 func (p *GmailPlugin) reported(id string) bool {
-	return p.reportedIds[id]
+	_, ok := p.reportedIds[id]
+	return ok
 }
 
 func (p *GmailPlugin) createNotifications(messages []message) ([]plugins.PushMessage, error) {
@@ -124,7 +161,7 @@ func (p *GmailPlugin) createNotifications(messages []message) ([]plugins.PushMes
 			epoch := hdr.getEpoch()
 			pushMsgMap[msg.ThreadId] = *plugins.NewStandardPushMessage(summary, body, action, "", epoch)
 		} else {
-			log.Println("gmail: skipping message id", msg.Id, "with date", msgStamp, "older than", timeDelta)
+			log.Print("gmail plugin ", p.accountId, ": skipping message id ", msg.Id, " with date ", msgStamp, " older than ", timeDelta)
 		}
 	}
 	var pushMsg []plugins.PushMessage
@@ -181,15 +218,16 @@ func (p *GmailPlugin) parseMessageListResponse(resp *http.Response) ([]message, 
 func (p *GmailPlugin) messageListFilter(messages []message) []message {
 	sort.Sort(byId(messages))
 	var reportMsg []message
-	var ids = make(map[string]bool)
+	var ids = make(reportedIdMap)
 
 	for _, msg := range messages {
 		if !p.reported(msg.Id) {
 			reportMsg = append(reportMsg, msg)
 		}
-		ids[msg.Id] = true
+		ids[msg.Id] = time.Now()
 	}
 	p.reportedIds = ids
+	p.reportedIds.persist(p.accountId)
 	return reportMsg
 }
 

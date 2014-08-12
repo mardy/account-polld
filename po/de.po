@@ -1,4 +1,4 @@
-# Amharic translation for account-polld
+# German translation for account-polld
 # Copyright (c) 2014 Rosetta Contributors and Canonical Ltd 2014
 # This file is distributed under the same license as the account-polld package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2014.
@@ -8,9 +8,9 @@ msgstr ""
 "Project-Id-Version: account-polld\n"
 "Report-Msgid-Bugs-To: FULL NAME <EMAIL@ADDRESS>\n"
 "POT-Creation-Date: 2014-08-11 15:35-0300\n"
-"PO-Revision-Date: 2014-08-10 19:28+0000\n"
-"Last-Translator: samson <Unknown>\n"
-"Language-Team: Amharic <am@li.org>\n"
+"PO-Revision-Date: 2014-08-10 13:39+0000\n"
+"Last-Translator: Miguel Guse <gusemiguel@gmail.com>\n"
+"Language-Team: German <de@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -21,12 +21,12 @@ msgstr ""
 #: plugins/twitter/twitter.go:113 plugins/twitter/twitter.go:170
 #, c-format
 msgid "%s. @%s"
-msgstr "%s. @%s"
+msgstr ""
 
 #. TRANSLATORS: This represents a notification summary about more twitter mentions available
 #: plugins/twitter/twitter.go:128
 msgid "Multiple more mentions"
-msgstr "በርካታ ተጨማሪዎች አሉ"
+msgstr ""
 
 #. TRANSLATORS: This represents a notification body with the comma separated twitter usernames
 #. TRANSLATORS: This represents a notification body with the comma separated facebook usernames
@@ -34,12 +34,12 @@ msgstr "በርካታ ተጨማሪዎች አሉ"
 #: plugins/facebook/facebook.go:172
 #, c-format
 msgid "From %s"
-msgstr "ከ %s"
+msgstr "Von %s"
 
 #. TRANSLATORS: This represents a notification summary about more twitter direct messages available
 #: plugins/twitter/twitter.go:185
 msgid "Multiple direct messages available"
-msgstr "በርካታ ቀጥተኛ መልእክቶች ዝግጁ ናቸው"
+msgstr ""
 
 #. TRANSLATORS: the %s is an appended "from" corresponding to an specific email thread
 #: plugins/gmail/gmail.go:153
@@ -66,13 +66,13 @@ msgstr ""
 #. TRANSLATORS: This represents a notification summary about more unread emails
 #: plugins/gmail/gmail.go:176
 msgid "More unread emails available"
-msgstr "ተጨማሪ ያልተነበቡ ኢሜይሎች ዝግጁ ናቸው"
+msgstr ""
 
 #. TRANSLATORS: the first %d refers to approximate additionl email message count
 #: plugins/gmail/gmail.go:180
 #, c-format
 msgid "You have an approximate of %d additional unread messages"
-msgstr "በግምት %d ተጨማሪ ያልተነበቡ መልእክቶች"
+msgstr ""
 
 #. TRANSLATORS: This represents a notification summary about more facebook notifications
 #: plugins/facebook/facebook.go:170
@@ -81,12 +81,12 @@ msgstr ""
 
 #: data/account-polld.desktop.tr.h:1
 msgid "Notifications"
-msgstr "ማስታወቂያዎች"
+msgstr "Benachrichtigungen"
 
 #: data/account-polld.application.tr.h:1
 msgid "Account Polling"
-msgstr "የ መግለጫ ድምፅ መስጫ"
+msgstr ""
 
 #: data/account-polld.application.tr.h:2
 msgid "Receive notifications for this account"
-msgstr "ለዚህ መግለጫ ማስታወቂያዎች መቀበያ"
+msgstr ""
