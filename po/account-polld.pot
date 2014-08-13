@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: account-polld\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-08-11 15:35-0300\n"
+"POT-Creation-Date: 2014-08-13 09:58-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,27 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
+
+#: cmd/account-polld/main.go:120
+msgid "New account created"
+msgstr ""
+
+#: cmd/account-polld/main.go:121
+msgid "Tap on it to enable notifications"
+msgstr ""
+
+#. TRANSLATORS: This represents a notification summary about more facebook notifications
+#: plugins/facebook/facebook.go:170
+msgid "Multiple more notifications"
+msgstr ""
+
+#. TRANSLATORS: This represents a notification body with the comma separated facebook usernames
+#. TRANSLATORS: This represents a notification body with the comma separated twitter usernames
+#: plugins/facebook/facebook.go:172 plugins/twitter/twitter.go:130
+#: plugins/twitter/twitter.go:187
+#, c-format
+msgid "From %s"
+msgstr ""
 
 #. TRANSLATORS: The first %s refers to the twitter user's Name, the second %s to the username.
 #: plugins/twitter/twitter.go:113 plugins/twitter/twitter.go:170
@@ -26,14 +47,6 @@ msgstr ""
 #. TRANSLATORS: This represents a notification summary about more twitter mentions available
 #: plugins/twitter/twitter.go:128
 msgid "Multiple more mentions"
-msgstr ""
-
-#. TRANSLATORS: This represents a notification body with the comma separated twitter usernames
-#. TRANSLATORS: This represents a notification body with the comma separated facebook usernames
-#: plugins/twitter/twitter.go:130 plugins/twitter/twitter.go:187
-#: plugins/facebook/facebook.go:172
-#, c-format
-msgid "From %s"
 msgstr ""
 
 #. TRANSLATORS: This represents a notification summary about more twitter direct messages available
@@ -70,11 +83,6 @@ msgstr ""
 #: plugins/gmail/gmail.go:180
 #, c-format
 msgid "You have an approximate of %d additional unread messages"
-msgstr ""
-
-#. TRANSLATORS: This represents a notification summary about more facebook notifications
-#: plugins/facebook/facebook.go:170
-msgid "Multiple more notifications"
 msgstr ""
 
 #: data/account-polld.desktop.tr.h:1

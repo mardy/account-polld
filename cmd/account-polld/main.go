@@ -117,8 +117,8 @@ L:
 			}
 		case data := <-watcher.AccountCh:
 			log.Println("New Account:", data.AccountId, "for", data.ServiceName)
-			summary := "new account blah blah"
-			body := "a new account was created, please enable notifications for it."
+			summary := gettext.Gettext("New account created")
+			body := gettext.Gettext("Tap on it to enable notifications")
 			epoch := time.Now().Unix()
 			action := "settings://personal/online-accounts"
 			pushMsg := *plugins.NewStandardPushMessage(summary, body, action, "", epoch)
