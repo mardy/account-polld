@@ -155,18 +155,21 @@ func postOffice(bus *dbus.Connection, postWatch chan *PostWatch) {
 // e.g.; if the APP_ID is com.ubuntu.music", the returned object path
 // would be "/com/ubuntu/PushNotifications/com_2eubuntu_2eubuntu_2emusic
 func pushObjectPath(id plugins.ApplicationId) dbus.ObjectPath {
+	pkg := POSTAL_OBJECT_PATH_PART
 	idParts := strings.Split(string(id), "_")
 	if len(idParts) < 2 {
 		panic(fmt.Sprintf("APP_ID '%s' is not valid", id))
-	}
-
-	pkg := POSTAL_OBJECT_PATH_PART
-	for _, c := range idParts[0] {
-		switch c {
-		case '+', '.', '-', ':', '~', '_':
-			pkg += fmt.Sprintf("_%x", string(c))
-		default:
-			pkg += string(c)
+	} else if strings.HasPrefix(string(id), "_") {
+		// it's a legacy app!
+		pkg += "_"
+	} else {
+		for _, c := range idParts[0] {
+			switch c {
+			case '+', '.', '-', ':', '~', '_':
+				pkg += fmt.Sprintf("_%x", string(c))
+			default:
+				pkg += string(c)
+			}
 		}
 	}
 	return dbus.ObjectPath(pkg)
