@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: account-polld\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-08-13 09:58-0300\n"
+"POT-Creation-Date: 2014-08-13 19:50-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,11 +17,13 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: cmd/account-polld/main.go:120
+#. TRANSLATORS: This is the summary of the notification triggered after creating a new account
+#: cmd/account-polld/main.go:121
 msgid "New account created"
 msgstr ""
 
-#: cmd/account-polld/main.go:121
+#. TRANSLATORS: This is the body of the notification triggered after creating a new account
+#: cmd/account-polld/main.go:123
 msgid "Tap on it to enable notifications"
 msgstr ""
 
