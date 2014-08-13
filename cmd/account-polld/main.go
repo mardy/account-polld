@@ -117,7 +117,9 @@ L:
 			}
 		case data := <-watcher.AccountCh:
 			log.Println("New Account:", data.AccountId, "for", data.ServiceName)
+			// TRANSLATORS: This is the summary of the notification triggered after creating a new account
 			summary := gettext.Gettext("New account created")
+			// TRANSLATORS: This is the body of the notification triggered after creating a new account
 			body := gettext.Gettext("Tap on it to enable notifications")
 			epoch := time.Now().Unix()
 			action := "settings://personal/online-accounts"
