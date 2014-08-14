@@ -17,10 +17,16 @@
 
 package main
 
+/*
+#cgo pkg-config: glib-2.0
+#include <glib.h>
+*/
+import "C"
 import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"log"
@@ -53,6 +59,9 @@ const (
 	POSTAL_OBJECT_PATH_PART = "/com/ubuntu/Postal/"
 )
 
+var mainLoopOnce sync.Once
+var mainLoop *C.GMainLoop
+
 func init() {
 }
 
@@ -77,8 +86,16 @@ func main() {
 	<-done
 }
 
+func startGlibMainLoop() *C.GMainLoop {
+	mainLoopOnce.Do(func() {
+		mainLoop = C.g_main_loop_new(nil, C.gboolean(1))
+		go C.g_main_loop_run(mainLoop)
+	})
+	return mainLoop
+}
+
 func monitorAccounts(postWatch chan *PostWatch) {
-	accounts.StartGlibMainLoop()
+	startGlibMainLoop()
 	watcher := accounts.NewWatcher(SERVICETYPE_POLL)
 	mgr := make(map[uint]*AccountManager)
 L:
