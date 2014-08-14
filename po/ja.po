@@ -8,13 +8,13 @@ msgstr ""
 "Project-Id-Version: account-polld\n"
 "Report-Msgid-Bugs-To: FULL NAME <EMAIL@ADDRESS>\n"
 "POT-Creation-Date: 2014-08-11 15:35-0300\n"
-"PO-Revision-Date: 2014-08-07 00:53+0000\n"
+"PO-Revision-Date: 2014-08-14 04:09+0000\n"
 "Last-Translator: Mitsuya Shibata <mty.shibata@gmail.com>\n"
 "Language-Team: Japanese <ja@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Launchpad-Export-Date: 2014-08-12 06:47+0000\n"
+"X-Launchpad-Export-Date: 2014-08-14 07:41+0000\n"
 "X-Generator: Launchpad (build 17156)\n"
 
 #. TRANSLATORS: The first %s refers to the twitter user's Name, the second %s to the username.
@@ -66,27 +66,27 @@ msgstr ""
 #. TRANSLATORS: This represents a notification summary about more unread emails
 #: plugins/gmail/gmail.go:176
 msgid "More unread emails available"
-msgstr ""
+msgstr "さらに未読のメールがあります"
 
 #. TRANSLATORS: the first %d refers to approximate additionl email message count
 #: plugins/gmail/gmail.go:180
 #, c-format
 msgid "You have an approximate of %d additional unread messages"
-msgstr ""
+msgstr "さらに%d件の未読メッセージがあります"
 
 #. TRANSLATORS: This represents a notification summary about more facebook notifications
 #: plugins/facebook/facebook.go:170
 msgid "Multiple more notifications"
-msgstr ""
+msgstr "複数の通知があります"
 
 #: data/account-polld.desktop.tr.h:1
 msgid "Notifications"
-msgstr ""
+msgstr "通知"
 
 #: data/account-polld.application.tr.h:1
 msgid "Account Polling"
-msgstr ""
+msgstr "アカウント通知"
 
 #: data/account-polld.application.tr.h:2
 msgid "Receive notifications for this account"
-msgstr ""
+msgstr "このアカウントからの通知を受信します"

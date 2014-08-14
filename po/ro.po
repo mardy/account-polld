@@ -8,13 +8,13 @@ msgstr ""
 "Project-Id-Version: account-polld\n"
 "Report-Msgid-Bugs-To: FULL NAME <EMAIL@ADDRESS>\n"
 "POT-Creation-Date: 2014-08-11 15:35-0300\n"
-"PO-Revision-Date: 2014-08-08 12:22+0000\n"
+"PO-Revision-Date: 2014-08-12 14:36+0000\n"
 "Last-Translator: Marian Vasile <marianvasile1972@gmail.com>\n"
 "Language-Team: Romanian <ro@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Launchpad-Export-Date: 2014-08-12 06:47+0000\n"
+"X-Launchpad-Export-Date: 2014-08-13 06:58+0000\n"
 "X-Generator: Launchpad (build 17156)\n"
 
 #. TRANSLATORS: The first %s refers to the twitter user's Name, the second %s to the username.
@@ -77,7 +77,7 @@ msgstr "Aveți aproximativ %d mesaje suplimentare necitite"
 #. TRANSLATORS: This represents a notification summary about more facebook notifications
 #: plugins/facebook/facebook.go:170
 msgid "Multiple more notifications"
-msgstr ""
+msgstr "Mai multe notificări multiple"
 
 #: data/account-polld.desktop.tr.h:1
 msgid "Notifications"
