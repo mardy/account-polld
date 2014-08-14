@@ -18,13 +18,20 @@
 package gmail
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/mail"
+	"net/textproto"
 	"net/url"
 	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"log"
@@ -114,16 +121,14 @@ func (p *GmailPlugin) Poll(authData *accounts.AuthData) ([]plugins.PushMessage, 
 		return nil, err
 	}
 
-	// TODO use the batching API defined in https://developers.google.com/gmail/api/guides/batch
-	for i := range messages {
-		resp, err := p.requestMessage(messages[i].Id, authData.AccessToken)
-		if err != nil {
-			return nil, err
-		}
-		messages[i], err = p.parseMessageResponse(resp)
-		if err != nil {
-			return nil, err
-		}
+	if len(messages) == 0 {
+		log.Print("gmail plugin ", p.accountId, ": no messages to fetch")
+		return nil, nil
+	}
+
+	messages, err = p.getMessageBatch(messages, authData.AccessToken)
+	if err != nil {
+		return nil, err
 	}
 	return p.createNotifications(messages)
 }
@@ -251,26 +256,151 @@ func (p *GmailPlugin) parseMessageResponse(resp *http.Response) (message, error)
 	return msg, nil
 }
 
-func (p *GmailPlugin) requestMessage(id, accessToken string) (*http.Response, error) {
-	u, err := baseUrl.Parse("messages/" + id)
+func (p *GmailPlugin) getMessageBatch(messages []message, accessToken string) ([]message, error) {
+	req, err := p.createBatchRequest(messages, accessToken)
 	if err != nil {
 		return nil, err
 	}
 
-	query := u.Query()
-	// only request specific fields
-	query.Add("fields", "snippet,threadId,id,payload/headers")
-	// get the full message to get From and Subject from headers
-	query.Add("format", "full")
-	u.RawQuery = query.Encode()
+	/*
+		dump, err := httputil.DumpRequest(req, true)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Println(string(dump))
+	*/
 
-	req, err := http.NewRequest("GET", u.String(), nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	} else if resp.StatusCode == 401 {
+		return nil, plugins.ErrTokenExpired
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("recieved %d when requesting message batch", resp.StatusCode)
+	}
+
+	/*
+		respDump, err := httputil.DumpResponse(resp, true)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Println(string(respDump))
+	*/
+
+	return p.getBatchResponse(resp)
+}
+
+func getBoundary(contentType string) (boundary string, err error) {
+	if i := strings.Index(contentType, ";"); i == -1 {
+		return boundary, errors.New("no boundary in batch response")
+	} else if mediaType := strings.TrimSpace(contentType[:i]); mediaType != "multipart/mixed" {
+		return boundary, errors.New("unexpected media type in batch response")
+	}
+
+	var start, end int
+	if i := strings.Index(contentType, "boundary="); i == -1 {
+		return boundary, errors.New("no boundary in batch response")
+	} else {
+		start = i + len("boundary=")
+	}
+	if i := strings.Index(contentType[start:], ";"); i == -1 {
+		end = len(contentType)
+	} else {
+		end = start + i
+	}
+
+	boundary = strings.TrimSpace(contentType[start:end])
+	return boundary, nil
+}
+
+func (p *GmailPlugin) getBatchResponse(resp *http.Response) (messages []message, err error) {
+	/*
+		    This is the ideal solution but the boundary has '=' in it and the parsing fails to parse
+		    it correctly, e.g.; "multipart/mixed; boundary=batch_Qau-LYGqak0=_AApYZR4VvsU="
+
+			contentType := resp.Header.Get("Content-Type")
+			fmt.Println(contentType)
+			mediaType, params, err := mime.ParseMediaType(contentType)
+			if err != nil {
+				fmt.Println(mediaType)
+				return nil, err
+			}
+			if !strings.HasPrefix(mediaType, "multipart/") {
+				return nil, fmt.Errorf("wrong mediatype, expected multipart and received %s", mediaType)
+			}
+	*/
+	contentType := resp.Header.Get("Content-Type")
+	boundary, err := getBoundary(contentType)
+	if err != nil {
+		return nil, err
+	}
+	multipartR := multipart.NewReader(resp.Body, boundary)
+	for {
+		part, err := multipartR.NextPart()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		defer part.Close()
+		r := bufio.NewReader(part)
+		for {
+			line, err := r.ReadString('\n')
+			if err == io.EOF {
+				return nil, errors.New("EOF reached before content")
+			}
+			if len(strings.TrimSpace(line)) == 0 {
+				break
+			}
+		}
+		var msg message
+		decoder := json.NewDecoder(r)
+		if err := decoder.Decode(&msg); err != nil {
+			return nil, err
+		}
+		messages = append(messages, msg)
+	}
+	return messages, nil
+}
+
+func (p *GmailPlugin) createBatchRequest(messages []message, accessToken string) (req *http.Request, err error) {
+	buffer := new(bytes.Buffer)
+	multipartW := multipart.NewWriter(buffer)
+	for i := range messages {
+		u, err := baseUrl.Parse("messages/" + messages[i].Id)
+		if err != nil {
+			return nil, err
+		}
+
+		query := u.Query()
+		// only request specific fields
+		query.Add("fields", "snippet,threadId,id,payload/headers")
+		// get the full message to get From and Subject from headers
+		query.Add("format", "full")
+		u.RawQuery = query.Encode()
+
+		mh := make(textproto.MIMEHeader)
+		mh.Set("Content-Type", "application/http")
+		mh.Set("Content-Id", messages[i].Id)
+
+		partW, err := multipartW.CreatePart(mh)
+		if err != nil {
+			return nil, err
+		}
+		content := []byte("GET " + u.String() + " HTTP/1.1\r\n")
+		partW.Write(content)
+	}
+
+	multipartW.Close()
+	req, err = http.NewRequest("POST", "https://www.googleapis.com/batch", buffer)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Content-Type", "multipart/mixed; boundary="+multipartW.Boundary())
 
-	return http.DefaultClient.Do(req)
+	return req, nil
 }
 
 func (p *GmailPlugin) requestMessageList(accessToken string) (*http.Response, error) {
