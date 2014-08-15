@@ -63,6 +63,7 @@ var mainLoopOnce sync.Once
 var mainLoop *C.GMainLoop
 
 func init() {
+	startGlibMainLoop()
 }
 
 func main() {
@@ -86,16 +87,14 @@ func main() {
 	<-done
 }
 
-func startGlibMainLoop() *C.GMainLoop {
+func startGlibMainLoop() {
 	mainLoopOnce.Do(func() {
 		mainLoop = C.g_main_loop_new(nil, C.gboolean(1))
 		go C.g_main_loop_run(mainLoop)
 	})
-	return mainLoop
 }
 
 func monitorAccounts(postWatch chan *PostWatch) {
-	startGlibMainLoop()
 	watcher := accounts.NewWatcher(SERVICETYPE_POLL)
 	mgr := make(map[uint]*AccountManager)
 L:
