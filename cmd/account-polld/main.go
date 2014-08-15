@@ -136,7 +136,7 @@ L:
 			// TRANSLATORS: This is the summary of the notification triggered after creating a new account
 			summary := gettext.Gettext("New account created")
 			// TRANSLATORS: This is the body of the notification triggered after creating a new account
-			body := gettext.Gettext("Tap on it to enable notifications")
+			body := gettext.Gettext("To enable notifications for this account, toggle Notifications from the account setting")
 			epoch := time.Now().Unix()
 			action := "settings://personal/online-accounts"
 			pushMsg := *plugins.NewStandardPushMessage(summary, body, action, "", epoch)

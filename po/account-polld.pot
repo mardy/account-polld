@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: account-polld\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-08-13 19:50-0300\n"
+"POT-Creation-Date: 2014-08-15 11:06-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,13 +18,15 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 
 #. TRANSLATORS: This is the summary of the notification triggered after creating a new account
-#: cmd/account-polld/main.go:121
+#: cmd/account-polld/main.go:137
 msgid "New account created"
 msgstr ""
 
 #. TRANSLATORS: This is the body of the notification triggered after creating a new account
-#: cmd/account-polld/main.go:123
-msgid "Tap on it to enable notifications"
+#: cmd/account-polld/main.go:139
+msgid ""
+"To enable notifications for this account, toggle Notifications from the "
+"account setting"
 msgstr ""
 
 #. TRANSLATORS: This represents a notification summary about more facebook notifications
