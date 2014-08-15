@@ -142,7 +142,6 @@ L:
 			pushMsg := *plugins.NewStandardPushMessage(summary, body, action, "", epoch)
 			msgs := []plugins.PushMessage{pushMsg}
 			postWatch <- &PostWatch{messages: msgs, appId: "_ubuntu-system-settings"}
-			break L
 		}
 	}
 }
