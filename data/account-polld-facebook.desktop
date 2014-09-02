@@ -6,5 +6,5 @@ Name=Facebook
 NoDisplay=true
 Terminal=false
 Type=Application
-Icon=twitter
+Icon=facebook
 X-Ubuntu-Gettext-Domain=account-polld

@@ -4,9 +4,9 @@
   <desktop-entry>account-polld-facebook.desktop</desktop-entry>
   <translations>account-polld</translations>
 
-  <service-types>
-    <service-type id="account-polld">
+  <services>
+    <service id="facebook-poll">
       <description>Receive notifications for this account</description>
-    </service-type>
-  </service-types>
+    </service>
+  </services>
 </application>
