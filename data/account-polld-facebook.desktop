@@ -1,0 +1,10 @@
+[Desktop Entry]
+Categories=Office;
+Exec=
+GenericName=account-polld-facebook
+Name=Facebook
+NoDisplay=true
+Terminal=false
+Type=Application
+Icon=twitter
+X-Ubuntu-Gettext-Domain=account-polld

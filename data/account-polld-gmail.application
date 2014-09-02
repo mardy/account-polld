@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<application id="account-polld-gmail">
+  <description>Account Polling</description>
+  <desktop-entry>account-polld-gmail.desktop</desktop-entry>
+  <translations>account-polld</translations>
+
+  <service-types>
+    <service-type id="account-polld">
+      <description>Receive notifications for this account</description>
+    </service-type>
+  </service-types>
+</application>

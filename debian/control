@@ -20,6 +20,7 @@ Standards-Version: 3.9.5
 Homepage: https://launchpad.net/account-polld
 Vcs-Browser: http://bazaar.launchpad.net/~phablet-team/account-polld/trunk/files
 Vcs-Bzr: lp:account-polld
+X-Ubuntu-Use-Langpack: yes
 
 Package: account-polld
 Architecture: any
@@ -33,4 +34,3 @@ Description: Poll daemon for notifications though the Ubuntu Push Client
  communicates with the postal service provided by the ubuntu push client
  to expose notifications for the click webapps for the aforementioned
  services.
-X-Ubuntu-Use-Langpack: yes

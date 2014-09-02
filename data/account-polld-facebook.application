@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<application id="account-polld">
+<application id="account-polld-facebook">
   <description>Account Polling</description>
-  <desktop-entry>account-polld.desktop</desktop-entry>
+  <desktop-entry>account-polld-facebook.desktop</desktop-entry>
   <translations>account-polld</translations>
 
   <service-types>

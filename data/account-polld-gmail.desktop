@@ -1,0 +1,10 @@
+[Desktop Entry]
+Categories=Office;
+Exec=
+GenericName=account-polld
+Name=Gmail
+NoDisplay=true
+Terminal=false
+Type=Application
+Icon=gmail
+X-Ubuntu-Gettext-Domain=account-polld

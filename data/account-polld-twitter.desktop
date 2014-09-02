@@ -1,10 +1,10 @@
 [Desktop Entry]
 Categories=Office;
 Exec=
-GenericName=account-polld
-Name=Notifications
+GenericName=account-polld-twitter
+Name=Twitter
 NoDisplay=true
 Terminal=false
 Type=Application
-Icon=indicator-messages
+Icon=twitter
 X-Ubuntu-Gettext-Domain=account-polld
