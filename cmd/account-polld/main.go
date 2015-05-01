@@ -19,6 +19,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -33,6 +36,7 @@ import (
 	"launchpad.net/account-polld/pollbus"
 	"launchpad.net/account-polld/qtcontact"
 	"launchpad.net/go-dbus/v1"
+	"launchpad.net/go-xdg/v0"
 )
 
 type PostWatch struct {
@@ -57,6 +61,8 @@ const (
 )
 
 var mainLoopOnce sync.Once
+
+var pollerInfo = filepath.Join(xdg.Data.Home(), "account-polld", "pollers.json")
 
 func init() {
 	startMainLoop()
@@ -92,6 +98,31 @@ func main() {
 
 	done := make(chan bool)
 	<-done
+}
+
+type execPoller struct {
+	AppId string `json:"app_id"`
+	Exec  string `json:"exec"`
+}
+
+func pollers() []*execPoller {
+	// here you probably want to check the timestamp and not
+	// reload if it's not changed. Less IO and less CPU == moar
+	// battery :)
+	data, err := ioutil.ReadFile(pollerInfo)
+	if err != nil {
+		log.Println("unable to read poller info file:", err)
+		return nil
+	}
+
+	var ps []*execPoller
+
+	if err := json.Unmarshal(data, ps); err != nil {
+		log.Println("unable to load poller info file:", err)
+		return nil
+	}
+
+	return ps
 }
 
 func monitorAccounts(postWatch chan *PostWatch, pollBus *pollbus.PollBus) {
@@ -157,6 +188,20 @@ L:
 				} else {
 					log.Println("Skipping account with id", v.authData.AccountId, "as it is refreshing its token")
 				}
+			}
+
+			for _, p := range pollers() {
+				// this should probably use a cual (C Ubuntu App Launcher)
+				// from launchpad.net/ubuntu-push/launch-helper/cual
+				// or otherwise wrap aa-exec and have a timeout
+				wg.Add(1)
+				go func(cmd string) {
+					out, err := exec.Command(cmd).CombinedOutput()
+					if err != nil {
+						log.Printf("%s failed with %v; output follows\n%s", cmd, err, out)
+					}
+					wg.Done()
+				}(p.Exec)
 			}
 			wg.Wait()
 			pollBus.SignalDone()
