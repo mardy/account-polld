@@ -44,10 +44,12 @@ type PostWatch struct {
    end points for the notifications */
 const (
 	SERVICETYPE_WEBAPPS = "webapps"
+	SERVICETYPE_IMAP    = "imap"
 
 	SERVICENAME_GMAIL    = "com.ubuntu.developer.webapps.webapp-gmail_webapp-gmail"
 	SERVICENAME_TWITTER  = "com.ubuntu.developer.webapps.webapp-twitter_webapp-twitter"
 	SERVICENAME_FACEBOOK = "com.ubuntu.developer.webapps.webapp-facebook_webapp-facebook"
+	SERVICENAME_IMAP     = "imap-accounts.nikwen_imap-accounts"
 )
 
 const (
@@ -95,14 +97,17 @@ func main() {
 }
 
 func monitorAccounts(postWatch chan *PostWatch, pollBus *pollbus.PollBus) {
-	// Note: the accounts monitored are all linked to webapps right now
-	watcher := accounts.NewWatcher(SERVICETYPE_WEBAPPS)
+	// register account watchers
+	webappWatcher := accounts.NewWatcher(SERVICETYPE_WEBAPPS)
+	imapWatcher := accounts.NewWatcher(SERVICETYPE_IMAP)
+
+	// map: account id -> account manager
 	mgr := make(map[uint]*AccountManager)
 
 L:
 	for {
 		select {
-		case data := <-watcher.C:
+		case data := <-webappWatcher.C:
 			if account, ok := mgr[data.AccountId]; ok {
 				if data.Enabled {
 					log.Println("New account data for existing account with id", data.AccountId)
@@ -131,9 +136,35 @@ L:
 					log.Println("Unhandled account with id", data.AccountId, "for", data.ServiceName)
 					continue L
 				}
-				mgr[data.AccountId] = NewAccountManager(watcher, postWatch, plugin)
+				mgr[data.AccountId] = NewAccountManager(webappWatcher, postWatch, plugin)
 				mgr[data.AccountId].updateAuthData(data)
 				mgr[data.AccountId].Poll(true)
+			}
+		case data := <-imapWatcher.C:
+			if _, ok := mgr[data.AccountId]; ok { // replace "_" by "account"
+				if data.Enabled {
+					log.Println("New account data for existing account with id", data.AccountId)
+					// account.penaltyCount = 0
+					// account.updateAuthData(data)
+					// account.Poll(false)
+				} else {
+					log.Println("Delete account", data.AccountId)
+					// account.Delete()
+					// delete(mgr, data.AccountId)
+				}
+			} else if data.Enabled {
+				// var plugin plugins.Plugin
+				switch data.ServiceName {
+				case SERVICENAME_IMAP:
+					log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
+					// plugin = gmail.New(data.AccountId)
+				default:
+					log.Println("Unhandled account with id", data.AccountId, "for", data.ServiceName)
+					continue L
+				}
+				// mgr[data.AccountId] = NewAccountManager(webappWatcher, postWatch, plugin)
+				// mgr[data.AccountId].updateAuthData(data)
+				// mgr[data.AccountId].Poll(true)
 			}
 		case <-pollBus.PollChan:
 			var wg sync.WaitGroup
