@@ -144,7 +144,7 @@ L:
 		case data := <-imapWatcher.C:
 			if _, ok := mgr[data.AccountId]; ok { // replace "_" by "account"
 				out, _ := json.Marshal(data)
-				log.Print(fmt.Sprintf("%s", string(out)))
+				log.Print(fmt.Sprintf("Data: %s", string(out)))
 				if data.Enabled {
 					log.Println("New account data for existing account with id", data.AccountId)
 					// account.penaltyCount = 0

@@ -29,7 +29,6 @@ import (
 	"errors"
 	"sync"
 	"unsafe"
-	"log"
 )
 
 type Watcher struct {
@@ -85,7 +84,6 @@ func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char,
 	authChannelsLock.Unlock()
 	if ch == nil {
 		// Log the error
-		log.Print("error return")
 		return
 	}
 
@@ -94,27 +92,21 @@ func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char,
 	data.ServiceName = C.GoString(serviceName)
 	if error != nil {
 		data.Error = errors.New(C.GoString((*C.char)(error.message)))
-		log.Print("error: ", data.Error)
 	}
 	if enabled != 0 {
 		data.Enabled = true
-		log.Print("enabled: ", data.Enabled)
 	}
 	if clientId != nil {
 		data.ClientId = C.GoString(clientId)
-		log.Print("clientId: ", data.ClientId)
 	}
 	if clientSecret != nil {
 		data.ClientSecret = C.GoString(clientSecret)
-		log.Print("secret: ", data.ClientSecret)
 	}
 	if accessToken != nil {
 		data.AccessToken = C.GoString(accessToken)
-		log.Print("accessToken: ", data.AccessToken)
 	}
 	if tokenSecret != nil {
 		data.TokenSecret = C.GoString(tokenSecret)
-		log.Print("tokenSecret: ", data.TokenSecret)
 	}
 	ch <- data
 }
