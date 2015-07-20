@@ -157,14 +157,14 @@ L:
 				switch data.ServiceName {
 				case SERVICENAME_IMAP:
 					log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
-					// plugin = gmail.New(data.AccountId)
+					plugin = imap.New(data.AccountId)
 				default:
 					log.Println("Unhandled account with id", data.AccountId, "for", data.ServiceName)
 					continue L
 				}
-				// mgr[data.AccountId] = NewAccountManager(webappWatcher, postWatch, plugin)
+				mgr[data.AccountId] = NewAccountManager(imapWatcher, postWatch, plugin)
 				// mgr[data.AccountId].updateAuthData(data)
-				// mgr[data.AccountId].Poll(true)
+				mgr[data.AccountId].Poll(true)
 			}
 		case <-pollBus.PollChan:
 			var wg sync.WaitGroup
