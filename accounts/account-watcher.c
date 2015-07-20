@@ -14,6 +14,7 @@
  with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <stdio.h>
+#include <string.h>
 
 #include <glib.h>
 #include <libaccounts-glib/accounts-glib.h>
@@ -101,24 +102,24 @@ static void account_info_notify(AccountInfo *info, GError *error) {
         g_variant_lookup(info->auth_params, "ClientId", "&s", &client_id);
         g_variant_lookup(info->auth_params, "ClientSecret", "&s", &client_secret);
         /* Fall back to OAuth 1 names if no OAuth 2 parameters could be found */
-        if (client_id != NULL && client_secret != NULL) {
+        if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
             /* type = "oauth2" */
         } else {
             g_variant_lookup(info->auth_params, "ConsumerKey", "&s", &client_id);
             g_variant_lookup(info->auth_params, "ConsumerSecret", "&s", &client_secret);
             /* Fall back to password authentication if no OAuth 1 parameters could be found */
-            if (client_id != NULL && client_secret != NULL) {
+            if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
                 /* type = "oauth1" */
             } else {
                 g_variant_lookup(info->auth_params, "UserName", "&s", &client_id);
                 g_variant_lookup(info->auth_params, "Secret", "&s", &client_secret);
-                if (client_id != NULL && client_secret != NULL) {
+                if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
                     /* type = "password" */
                 }
             }
         }
     }
-    if (info->session_data != NULL) {
+    if (info->session_data != NULL) { /* TODO: && type != "password" */
         g_variant_lookup(info->session_data, "AccessToken", "&s", &access_token);
         g_variant_lookup(info->session_data, "TokenSecret", "&s", &token_secret);
     }
