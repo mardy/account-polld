@@ -88,21 +88,37 @@ static void account_info_free(AccountInfo *info) {
 
 static void account_info_notify(AccountInfo *info, GError *error) {
     AgService *service = ag_account_service_get_service(info->account_service);
+    AgAccount *account = ag_account_service_get_account(service);
+
+    if (ag_account_supports_service(account, ""))
+
     const char *service_name = ag_service_get_name(service);
     char *client_id = NULL;
     char *client_secret = NULL;
     char *access_token = NULL;
     char *token_secret = NULL;
+    /* char *type = NULL; */ /* TODO: type, other names when password authentication? */
 
     if (info->auth_params != NULL) {
-        /* Look up OAuth 2 parameters, falling back to OAuth 1 names */
+        /* Look up OAuth 2 parameters */
         g_variant_lookup(info->auth_params, "ClientId", "&s", &client_id);
         g_variant_lookup(info->auth_params, "ClientSecret", "&s", &client_secret);
-        if (client_id == NULL) {
+        /* Fall back to OAuth 1 names if no OAuth 2 parameters could be found */
+        if (client_id != NULL && client_secret != NULL) {
+            /* type = "oauth2" */
+        } else {
             g_variant_lookup(info->auth_params, "ConsumerKey", "&s", &client_id);
-        }
-        if (client_secret == NULL) {
             g_variant_lookup(info->auth_params, "ConsumerSecret", "&s", &client_secret);
+            /* Fall back to password authentication if no OAuth 1 parameters could be found */
+            if (client_id != NULL && client_secret != NULL) {
+                /* type = "oauth1" */
+            } else {
+                g_variant_lookup(info->auth_params, "UserName", "&s", &client_id);
+                g_variant_lookup(info->auth_params, "Password", "&s", &client_secret);
+                if (client_id != NULL && client_secret != NULL) {
+                    /* type = "password" */
+                }
+            }
         }
     }
     if (info->session_data != NULL) {
