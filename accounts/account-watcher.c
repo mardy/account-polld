@@ -88,9 +88,6 @@ static void account_info_free(AccountInfo *info) {
 
 static void account_info_notify(AccountInfo *info, GError *error) {
     AgService *service = ag_account_service_get_service(info->account_service);
-    AgAccount *account = ag_account_service_get_account(service);
-
-    if (ag_account_supports_service(account, ""))
 
     const char *service_name = ag_service_get_name(service);
     char *client_id = NULL;
