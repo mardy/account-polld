@@ -114,7 +114,7 @@ static void account_info_notify(AccountInfo *info, GError *error) {
                 /* type = "oauth1" */
             } else {
                 g_variant_lookup(info->auth_params, "UserName", "&s", &client_id);
-                g_variant_lookup(info->auth_params, "Password", "&s", &client_secret);
+                g_variant_lookup(info->auth_params, "Secret", "&s", &client_secret);
                 if (client_id != NULL && client_secret != NULL) {
                     /* type = "password" */
                 }
