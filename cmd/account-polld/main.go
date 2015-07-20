@@ -29,8 +29,8 @@ import (
 	"launchpad.net/account-polld/plugins"
 	"launchpad.net/account-polld/plugins/facebook"
 	"launchpad.net/account-polld/plugins/gmail"
-	"launchpad.net/account-polld/plugins/twitter"
 	"launchpad.net/account-polld/plugins/imap"
+	"launchpad.net/account-polld/plugins/twitter"
 	"launchpad.net/account-polld/pollbus"
 	"launchpad.net/account-polld/qtcontact"
 	"launchpad.net/go-dbus/v1"
@@ -164,7 +164,7 @@ L:
 					continue L
 				}
 				mgr[data.AccountId] = NewAccountManager(imapWatcher, postWatch, plugin)
-				// mgr[data.AccountId].updateAuthData(data)
+				mgr[data.AccountId].updateAuthData(data)
 				mgr[data.AccountId].Poll(true)
 			}
 		case <-pollBus.PollChan:

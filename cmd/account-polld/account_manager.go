@@ -81,7 +81,7 @@ func (a *AccountManager) Poll(bootstrap bool) {
 	}
 
 	if a.penaltyCount > 0 {
-		log.Printf("Leaving poll for account %d as penaly count is %d", a.authData.AccountId, a.penaltyCount)
+		log.Printf("Leaving poll for account %d as penalty count is %d", a.authData.AccountId, a.penaltyCount)
 		a.penaltyCount--
 		return
 	}
