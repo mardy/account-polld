@@ -85,7 +85,7 @@ func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char,
 	authChannelsLock.Unlock()
 	if ch == nil {
 		// Log the error
-		log.Print("error")
+		log.Print("error return")
 		return
 	}
 
