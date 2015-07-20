@@ -143,7 +143,7 @@ L:
 			}
 		case data := <-imapWatcher.C:
 			if _, ok := mgr[data.AccountId]; ok { // replace "_" by "account"
-				out, err := json.Marshal(data)
+				out, _ := json.Marshal(data)
 				log.Print(fmt.Sprintf("%s", string(out)))
 				if data.Enabled {
 					log.Println("New account data for existing account with id", data.AccountId)
