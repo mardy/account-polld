@@ -142,7 +142,6 @@ L:
 				mgr[data.AccountId].Poll(true)
 			}
 		case data := <-imapWatcher.C:
-			log.Print(fmt.Sprintf("Data: %#v", data))
 			if _, ok := mgr[data.AccountId]; ok { // replace "_" by "account"
 				if data.Enabled {
 					log.Println("New account data for existing account with id", data.AccountId)

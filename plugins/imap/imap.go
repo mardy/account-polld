@@ -98,7 +98,7 @@ func (p *ImapPlugin) ApplicationId() plugins.ApplicationId {
 
 func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBatch, error) {
 	log.Print("imap plugin: polling")
-	log.Print("authData: ", authData.AccountId, ", ", authData.ClientId, ", ", authData.ClientSecret)
+	log.Print(fmt.Sprintf("authData: %#v", authData))
 
 	return nil, nil
 
