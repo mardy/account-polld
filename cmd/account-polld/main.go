@@ -30,6 +30,7 @@ import (
 	"launchpad.net/account-polld/plugins/facebook"
 	"launchpad.net/account-polld/plugins/gmail"
 	"launchpad.net/account-polld/plugins/twitter"
+	"launchpad.net/account-polld/plugins/imap"
 	"launchpad.net/account-polld/pollbus"
 	"launchpad.net/account-polld/qtcontact"
 	"launchpad.net/go-dbus/v1"
@@ -153,7 +154,7 @@ L:
 					// delete(mgr, data.AccountId)
 				}
 			} else if data.Enabled {
-				// var plugin plugins.Plugin
+				var plugin plugins.Plugin
 				switch data.ServiceName {
 				case SERVICENAME_IMAP:
 					log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
