@@ -126,7 +126,7 @@ static void account_info_notify(AccountInfo *info, GError *error) {
         }
     }
     if (info->session_data != NULL) {
-        if (type !== TYPE_UNDEFINED) {
+        if (type != TYPE_UNDEFINED) {
             g_variant_lookup(info->session_data, "AccessToken", "&s", &access_token);
             g_variant_lookup(info->session_data, "TokenSecret", "&s", &token_secret);
         } else {
