@@ -87,6 +87,11 @@ static void account_info_free(AccountInfo *info) {
     g_free(info);
 }
 
+#define TYPE_UNDEFINED 0
+#define TYPE_OAUTH2    1
+#define TYPE_OAUTH1    2
+#define TYPE_PASSWORD  3
+
 static void account_info_notify(AccountInfo *info, GError *error) {
     AgService *service = ag_account_service_get_service(info->account_service);
 
@@ -95,12 +100,12 @@ static void account_info_notify(AccountInfo *info, GError *error) {
     char *client_secret = NULL;
     char *access_token = NULL;
     char *token_secret = NULL;
-    /* char *type = NULL; */ /* TODO: type, other names when password authentication? */
+    int type = TYPE_UNDEFINED; /* TODO: pass type to auth data? other variable names when password authentication? leave some of them out? */
 
-    trace("GVariant:");
-    trace(g_variant_print(info->auth_params, TRUE));
-    trace("Session Data:");
-    trace(g_variant_print(info->session_data, TRUE));
+    // trace("GVariant:");
+    // trace("%s", g_variant_print(info->auth_params, TRUE));
+    // trace("Session Data:");
+    // trace("%s", g_variant_print(info->session_data, TRUE));
 
     if (info->auth_params != NULL) {
         /* Look up OAuth 2 parameters */
@@ -108,28 +113,30 @@ static void account_info_notify(AccountInfo *info, GError *error) {
         g_variant_lookup(info->auth_params, "ClientSecret", "&s", &client_secret);
         /* Fall back to OAuth 1 names if no OAuth 2 parameters could be found */
         if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
-            /* type = "oauth2" */
-            trace("oauth2");
+            type = TYPE_OAUTH2;
+            trace("type: oauth2");
         } else {
             g_variant_lookup(info->auth_params, "ConsumerKey", "&s", &client_id);
             g_variant_lookup(info->auth_params, "ConsumerSecret", "&s", &client_secret);
             /* Fall back to password authentication if no OAuth 1 parameters could be found */
             if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
-                /* type = "oauth1" */
-                trace("oauth1");
-            } else {
-                g_variant_lookup(info->auth_params, "UserName", "&s", &client_id);
-                g_variant_lookup(info->auth_params, "Secret", "&s", &client_secret);
-                if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
-                    /* type = "password" */
-                    trace("password");
-                }
+                type = TYPE_OAUTH1;
+                trace("type: oauth1");
             }
         }
     }
-    if (info->session_data != NULL) { /* TODO: && type != "password" */
-        g_variant_lookup(info->session_data, "AccessToken", "&s", &access_token);
-        g_variant_lookup(info->session_data, "TokenSecret", "&s", &token_secret);
+    if (info->session_data != NULL) {
+        if (type !== TYPE_UNDEFINED) {
+            g_variant_lookup(info->session_data, "AccessToken", "&s", &access_token);
+            g_variant_lookup(info->session_data, "TokenSecret", "&s", &token_secret);
+        } else {
+            g_variant_lookup(info->session_data, "UserName", "&s", &client_id);
+            g_variant_lookup(info->session_data, "Secret", "&s", &client_secret);
+            if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
+                type = TYPE_PASSWORD;
+                trace("type: password");
+            }
+        }
     }
 
     info->watcher->callback(info->watcher,
