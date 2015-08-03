@@ -22,7 +22,7 @@
 
 #include "account-watcher.h"
 
-#define DEBUG
+/* #define DEBUG */
 #ifdef DEBUG
 #  define trace(...) fprintf(stderr, __VA_ARGS__)
 #else
@@ -114,14 +114,12 @@ static void account_info_notify(AccountInfo *info, GError *error) {
         /* Fall back to OAuth 1 names if no OAuth 2 parameters could be found */
         if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
             type = TYPE_OAUTH2;
-            trace("type: oauth2");
         } else {
             g_variant_lookup(info->auth_params, "ConsumerKey", "&s", &client_id);
             g_variant_lookup(info->auth_params, "ConsumerSecret", "&s", &client_secret);
             /* Fall back to password authentication if no OAuth 1 parameters could be found */
             if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
                 type = TYPE_OAUTH1;
-                trace("type: oauth1");
             }
         }
     }
@@ -134,7 +132,6 @@ static void account_info_notify(AccountInfo *info, GError *error) {
             g_variant_lookup(info->session_data, "Secret", "&s", &client_secret);
             if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
                 type = TYPE_PASSWORD;
-                trace("type: password");
             }
         }
     }
