@@ -22,7 +22,7 @@
 
 #include "account-watcher.h"
 
-/* #define DEBUG */
+#define DEBUG
 #ifdef DEBUG
 #  define trace(...) fprintf(stderr, __VA_ARGS__)
 #else
@@ -97,6 +97,11 @@ static void account_info_notify(AccountInfo *info, GError *error) {
     char *token_secret = NULL;
     /* char *type = NULL; */ /* TODO: type, other names when password authentication? */
 
+    trace("GVariant:");
+    trace(g_variant_print(info->auth_params));
+    trace("Session Data:");
+    trace(g_variant_print(info->session_data));
+
     if (info->auth_params != NULL) {
         /* Look up OAuth 2 parameters */
         g_variant_lookup(info->auth_params, "ClientId", "&s", &client_id);
@@ -104,17 +109,20 @@ static void account_info_notify(AccountInfo *info, GError *error) {
         /* Fall back to OAuth 1 names if no OAuth 2 parameters could be found */
         if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
             /* type = "oauth2" */
+            trace("oauth2");
         } else {
             g_variant_lookup(info->auth_params, "ConsumerKey", "&s", &client_id);
             g_variant_lookup(info->auth_params, "ConsumerSecret", "&s", &client_secret);
             /* Fall back to password authentication if no OAuth 1 parameters could be found */
             if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
                 /* type = "oauth1" */
+                trace("oauth1");
             } else {
                 g_variant_lookup(info->auth_params, "UserName", "&s", &client_id);
                 g_variant_lookup(info->auth_params, "Secret", "&s", &client_secret);
                 if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
                     /* type = "password" */
+                    trace("password");
                 }
             }
         }
