@@ -98,9 +98,9 @@ static void account_info_notify(AccountInfo *info, GError *error) {
     /* char *type = NULL; */ /* TODO: type, other names when password authentication? */
 
     trace("GVariant:");
-    trace(g_variant_print(info->auth_params));
+    trace(g_variant_print(info->auth_params, TRUE));
     trace("Session Data:");
-    trace(g_variant_print(info->session_data));
+    trace(g_variant_print(info->session_data, TRUE));
 
     if (info->auth_params != NULL) {
         /* Look up OAuth 2 parameters */
