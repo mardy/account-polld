@@ -26,9 +26,9 @@ import (
 	// "sort"
 	"time"
 
+	"bytes"
 	"log"
 	"strings"
-	"bytes"
 
 	"launchpad.net/account-polld/accounts"
 	// "launchpad.net/account-polld/gettext"
@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	APP_ID          = "imap-accounts.nikwen_imap-accounts"
+	APP_ID = "imap-accounts.nikwen_imap-accounts"
 	// this means 2 individual messages + 1 bundled notification.
 	individualNotificationsLimit = 2
 	pluginName                   = "imap"
@@ -100,9 +100,6 @@ func (p *ImapPlugin) ApplicationId() plugins.ApplicationId {
 }
 
 func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBatch, error) {
-	log.Print("imap plugin: polling")
-	log.Print(fmt.Sprintf("authData: %#v", authData))
-
 	// Get the user's login data
 	user := authData.ClientId
 	password := authData.ClientSecret
@@ -171,13 +168,13 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	// fetch unread messages by ids
 	set, _ := goimap.NewSeqSet("")
 	set.AddNum(cmd.Data[0].SearchResults()...)
-  cmd, err = c.UIDFetch(set, "RFC822", "RFC822.HEADER", "UID")
+	cmd, err = c.UIDFetch(set, "RFC822", "RFC822.HEADER", "UID")
 	if err != nil {
 		log.Print("imap plugin ", p.accountId, ": failed fetch messages by uids: ", err)
 		return nil, err
 	}
 
-  messages := []string{}
+	messages := []string{}
 
 	// Process responses while the command is running
 	for cmd.InProgress() {
@@ -196,8 +193,8 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		c.Data = nil
 	}
 
-		// Log the messages
-	log.Print(fmt.Sprintf("Messages: %v", messages))
+	// Log the messages
+	log.Print(fmt.Sprintf("Message subjects: %v", messages))
 
 	return nil, nil
 
