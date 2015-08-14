@@ -109,7 +109,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	// Connect to the IMAP server
 	var c *goimap.Client
 	var err error
-	addr := "imap.google.com:993"
+	addr := "imap.gmail.com:993"
 	if strings.HasSuffix(addr, ":993") {
 		c, err = goimap.DialTLS(addr, nil)
 	} else {
