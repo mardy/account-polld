@@ -28,6 +28,7 @@ import (
 
 	"log"
 	"strings"
+	"bytes"
 
 	"launchpad.net/account-polld/accounts"
 	// "launchpad.net/account-polld/gettext"
@@ -185,7 +186,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		c.Recv(-1)
 
 		// Process command data
-		for _, rsp = range cmd.Data {
+		for _, rsp := range cmd.Data {
 			header := goimap.AsBytes(rsp.MessageInfo().Attrs["RFC822.HEADER"])
 			if msg, _ := mail.ReadMessage(bytes.NewReader(header)); msg != nil {
 				subject := msg.Header.Get("Subject")
