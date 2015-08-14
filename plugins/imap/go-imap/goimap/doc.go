@@ -113,4 +113,4 @@ of a client application:
 	http://tools.ietf.org/html/rfc4549 -- Synchronization Operations for Disconnected IMAP4 Clients
 	http://tools.ietf.org/html/rfc5530 -- IMAP Response Codes
 */
-package imap
+package goimap

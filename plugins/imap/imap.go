@@ -27,10 +27,12 @@ import (
 	"time"
 
 	"log"
+	"strings"
 
 	"launchpad.net/account-polld/accounts"
 	// "launchpad.net/account-polld/gettext"
 	"launchpad.net/account-polld/plugins"
+	"launchpad.net/account-polld/plugins/imap/go-imap/goimap"
 	// "launchpad.net/account-polld/qtcontact"
 )
 
@@ -99,6 +101,74 @@ func (p *ImapPlugin) ApplicationId() plugins.ApplicationId {
 func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBatch, error) {
 	log.Print("imap plugin: polling")
 	log.Print(fmt.Sprintf("authData: %#v", authData))
+
+	// Get the user's login data
+	user := authData.ClientId
+	password := authData.ClientSecret
+
+	// Connect to the IMAP server
+	var c *goimap.Client
+	var err error
+	addr := "imap.google.com:993"
+	if strings.HasSuffix(addr, ":993") {
+		c, err = goimap.DialTLS(addr, nil)
+	} else {
+		c, err = goimap.Dial(addr)
+	}
+	if err != nil {
+		log.Print("imap plugin ", p.accountId, ": failed to dial host: ", err)
+		return nil, err
+	}
+
+	// Make sure that we log out afterwards
+	defer func() {
+		_, err := c.Logout(30 * time.Second)
+		if err != nil {
+			log.Print("imap plugin ", p.accountId, ": failed to log out: ", err)
+		}
+	}()
+
+	// Enable session privacy protection and integrity checking if available
+	if c.Caps["STARTTLS"] {
+		_, err := c.StartTLS(nil)
+		if err != nil {
+			log.Print("imap plugin ", p.accountId, ": failed to start tls: ", err)
+			return nil, err
+		}
+	}
+
+	// Allow the server to send status commands
+	_, err = c.Noop()
+	if err != nil {
+		log.Print("imap plugin ", p.accountId, ": error during noop: ", err)
+		return nil, err
+	}
+	c.Data = nil
+
+	// Log in using the user's credentials
+	_, err = c.Login(user, password)
+	if err != nil {
+		log.Print("imap plugin ", p.accountId, ": failed to log in: ", err)
+		return nil, err
+	}
+
+	// Select the inbox
+	_, err = c.Select("INBOX", true)
+	if err != nil {
+		log.Print("imap plugin ", p.accountId, ": failed to select the inbox: ", err)
+		return nil, err
+	}
+	c.Data = nil
+
+	// Get all uids of unseen mails
+	cmd, err := goimap.Wait(c.UIDSearch("1:* UNSEEN"))
+	if err != nil {
+		log.Print("imap plugin ", p.accountId, ": failed to get unseen messages: ", err)
+		return nil, err
+	}
+
+	// Log the response
+	log.Print(fmt.Sprintf("Response: %#v", cmd.Data))
 
 	return nil, nil
 
