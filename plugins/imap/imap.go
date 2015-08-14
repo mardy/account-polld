@@ -20,7 +20,7 @@ import (
 	// "encoding/json"
 	"fmt"
 	// "net/http"
-	// "net/mail"
+	"net/mail"
 	// "net/url"
 	// "os"
 	// "sort"
@@ -160,15 +160,44 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	}
 	c.Data = nil
 
-	// Get all uids of unseen mails
+	// Get all uids of unseen mails // TODO: max limit!
 	cmd, err := goimap.Wait(c.UIDSearch("1:* UNSEEN"))
 	if err != nil {
 		log.Print("imap plugin ", p.accountId, ": failed to get unseen messages: ", err)
 		return nil, err
 	}
 
-	// Log the response
-	log.Print(fmt.Sprintf("Response: %#v", cmd.Data))
+	// fetch unread messages by ids
+  set, _ := goimap.NewSeqSet("")
+	set.AddNum(cmd.Data[0].SearchResults()...)
+
+  cmd, err = c.UIDFetch(set, "RFC822", "RFC822.HEADER", "UID")
+	if err != nil {
+		log.Print("imap plugin ", p.accountId, ": failed fetch messages by uids: ", err)
+		return nil, err
+	}
+
+  messages := []string{}
+
+	// Process responses while the command is running
+	for cmd.InProgress() {
+		// Wait for the next response (no timeout)
+		c.Recv(-1)
+
+		// Process command data
+		for _, rsp = range cmd.Data {
+			header := goimap.AsBytes(rsp.MessageInfo().Attrs["RFC822.HEADER"])
+			if msg, _ := mail.ReadMessage(bytes.NewReader(header)); msg != nil {
+				subject := msg.Header.Get("Subject")
+				messages = append(messages, subject)
+			}
+		}
+		cmd.Data = nil
+		c.Data = nil
+	}
+
+		// Log the messages
+		log.Print(fmt.Sprintf("Messages: %v", messages))
 
 	return nil, nil
 
