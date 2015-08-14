@@ -138,7 +138,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	}
 
 	// Allow the server to send status commands
-	_, err = c.Noop()
+	_, err = goimap.Wait(c.Noop())
 	if err != nil {
 		log.Print("imap plugin ", p.accountId, ": error during noop: ", err)
 		return nil, err
