@@ -123,7 +123,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 
 	// Make sure that we log out afterwards
 	defer func() {
-		_, err := c.Logout(30 * time.Second)
+		_, err := c.Logout(10 * time.Second)
 		if err != nil {
 			log.Print("imap plugin ", p.accountId, ": failed to log out: ", err)
 		}
@@ -169,9 +169,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	}
 
 	// fetch unread messages by ids
-  set, _ := goimap.NewSeqSet("")
-	set.AddNum(cmd.Data[0].SearchResults()...)
-
+  set, _ := goimap.NewSeqSet("1:*")
   cmd, err = c.UIDFetch(set, "RFC822", "RFC822.HEADER", "UID")
 	if err != nil {
 		log.Print("imap plugin ", p.accountId, ": failed fetch messages by uids: ", err)
