@@ -161,7 +161,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	c.Data = nil
 
 	// Get all uids of unseen mails // TODO: max limit!
-	cmd, err := goimap.Wait(c.UIDSearch("1:* UNSEEN"))
+	cmd, err := c.UIDSearch("1:* UNSEEN")
 	if err != nil {
 		log.Print("imap plugin ", p.accountId, ": failed to get unseen messages: ", err)
 		return nil, err
@@ -197,7 +197,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	}
 
 		// Log the messages
-		log.Print(fmt.Sprintf("Messages: %v", messages))
+	log.Print(fmt.Sprintf("Messages: %v", messages))
 
 	return nil, nil
 
