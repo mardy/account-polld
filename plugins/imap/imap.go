@@ -208,25 +208,25 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 				bodyBuffer := new(bytes.Buffer)
 				bodyBuffer.ReadFrom(msg.Body)
 
+				// TODO: Support multipart messages
+				// Library: github.com/jhillyerd/go.enmime
+
 				messages = append(messages, &Message{
 					uid: goimap.AsNumber(msgInfo.Attrs["UID"]),
 					sender: sender,
 					subject: msg.Header.Get("Subject"),
 					message: bodyBuffer.String(),
 				})
-
-				log.Print(fmt.Sprintf("Message: %#v", Message{ // TODO: Remove (debugging only)
-					uid: goimap.AsNumber(msgInfo.Attrs["UID"]),
-					sender: sender,
-					subject: msg.Header.Get("Subject"),
-					message: bodyBuffer.String(),
-				}))
 			} else if err != nil {
 				log.Print("imap plugin ", p.accountId, ": failed to parse message body: ", err)
 			}
 		}
 		cmd.Data = nil
 		c.Data = nil
+	}
+
+	for _, msg range messages {
+		log.Print(fmt.Sprintf("Message: %#v", *msg))
 	}
 
 	return nil, nil
