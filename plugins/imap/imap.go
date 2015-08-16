@@ -175,7 +175,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	// fetch unread messages by ids
 	set, _ := goimap.NewSeqSet("")
 	set.AddNum(cmd.Data[0].SearchResults()...)
-	cmd, err = c.UIDFetch(set, "RFC822", "UID", "RFC822.HEADER", "BODY[TEXT]")
+	cmd, err = c.UIDFetch(set, "RFC822", "UID", "BODY")
 	if err != nil {
 		log.Print("imap plugin ", p.accountId, ": failed fetch messages by uids: ", err)
 		return nil, err
@@ -191,8 +191,8 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		// Process command data
 		for _, rsp := range cmd.Data {
 			msgInfo := rsp.MessageInfo()
-			header := goimap.AsBytes(msgInfo.Attrs["RFC822.HEADER"])
-			if msg, _ := mail.ReadMessage(bytes.NewReader(header)); msg != nil {
+			body := goimap.AsBytes(msgInfo.Attrs["BODY"])
+			if msg, _ := mail.ReadMessage(bytes.NewReader(body)); msg != nil {
 				rawAddress := goimap.AsString(msg.Header.Get("From"))
 				address, err := mail.ParseAddress(rawAddress)
 				var sender string
@@ -204,18 +204,22 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 				} else {
 					sender = address.Address
 				}
+
+				bodyBuffer := new(bytes.Buffer)
+				bodyBuffer.ReadFrom(address.Body)
+
 				messages = append(messages, &Message{
 					uid: goimap.AsNumber(msgInfo.Attrs["UID"]),
 					sender: sender,
 					subject: msg.Header.Get("Subject"),
-					message: goimap.AsString(msgInfo.Attrs["BODY[TEXT]"]),
+					message: bodyBuffer.toString(),
 				})
 
 				log.Print(fmt.Sprintf("Message: %#v", Message{ // TODO: Remove (debugging only)
 					uid: goimap.AsNumber(msgInfo.Attrs["UID"]),
 					sender: sender,
 					subject: msg.Header.Get("Subject"),
-					message: goimap.AsString(msgInfo.Attrs["BODY[TEXT]"]),
+					message: bodyBuffer.toString(),
 				}))
 			}
 		}
