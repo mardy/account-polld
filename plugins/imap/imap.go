@@ -175,7 +175,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	// fetch unread messages by ids
 	set, _ := goimap.NewSeqSet("")
 	set.AddNum(cmd.Data[0].SearchResults()...)
-	cmd, err = c.UIDFetch(set, "RFC822", "UID", "BODY")
+	cmd, err = c.UIDFetch(set, "RFC822", "UID", "BODY[]")
 	if err != nil {
 		log.Print("imap plugin ", p.accountId, ": failed fetch messages by uids: ", err)
 		return nil, err
@@ -191,7 +191,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		// Process command data
 		for _, rsp := range cmd.Data {
 			msgInfo := rsp.MessageInfo()
-			body := goimap.AsBytes(msgInfo.Attrs["BODY"])
+			body := goimap.AsBytes(msgInfo.Attrs["BODY[]"])
 			if msg, err := mail.ReadMessage(bytes.NewReader(body)); msg != nil {
 				rawAddress := goimap.AsString(msg.Header.Get("From"))
 				address, err := mail.ParseAddress(rawAddress)
