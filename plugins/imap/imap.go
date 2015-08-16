@@ -60,6 +60,13 @@ type ImapPlugin struct {
 	accountId   uint
 }
 
+type Message struct {
+	uid uint32
+	sender string
+	subject string
+	message string
+}
+
 func idsFromPersist(accountId uint) (ids reportedIdMap, err error) {
 	err = plugins.FromPersist(pluginName, accountId, &ids)
 	if err != nil {
@@ -168,13 +175,13 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	// fetch unread messages by ids
 	set, _ := goimap.NewSeqSet("")
 	set.AddNum(cmd.Data[0].SearchResults()...)
-	cmd, err = c.UIDFetch(set, "RFC822", "RFC822.HEADER", "UID")
+	cmd, err = c.UIDFetch(set, "RFC822", "UID", "RFC822.HEADER", "RFC822.TEXT")
 	if err != nil {
 		log.Print("imap plugin ", p.accountId, ": failed fetch messages by uids: ", err)
 		return nil, err
 	}
 
-	messages := []string{}
+	messages := []*Message{}
 
 	// Process responses while the command is running
 	for cmd.InProgress() {
@@ -183,10 +190,33 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 
 		// Process command data
 		for _, rsp := range cmd.Data {
-			header := goimap.AsBytes(rsp.MessageInfo().Attrs["RFC822.HEADER"])
+			msgInfo := rsp.MessageInfo()
+			header := goimap.AsBytes(msgInfo.Attrs["RFC822.HEADER"])
 			if msg, _ := mail.ReadMessage(bytes.NewReader(header)); msg != nil {
-				subject := msg.Header.Get("Subject")
-				messages = append(messages, subject)
+				rawAddress := goimap.AsString(msg.Header.Get("From"))
+				address, err := mail.ParseAddress(rawAddress)
+				var sender string
+				if err != nil {
+					log.Print("imap plugin ", p.accountId, ": failed to parse email address: ", err)
+					sender = rawAddress
+				} else if len(address.Name) > 0 {
+					sender = address.Name
+				} else {
+					sender = address.Address
+				}
+				messages = append(messages, &Message{
+					uid: goimap.AsNumber(msgInfo.Attrs["UID"]),
+					sender: sender,
+					subject: msg.Header.Get("Subject"),
+					message: goimap.AsString(msgInfo.Attrs["RFC822.TEXT"]),
+				})
+
+				log.Print(fmt.Sprintf("Message: %#v", Message{ // TODO: Remove (debugging only)
+					uid: goimap.AsNumber(msgInfo.Attrs["UID"]),
+					sender: sender,
+					subject: msg.Header.Get("Subject"),
+					message: goimap.AsString(msgInfo.Attrs["RFC822.TEXT"]),
+				}))
 			}
 		}
 		cmd.Data = nil
@@ -241,9 +271,9 @@ func (p *ImapPlugin) reported(id string) bool {
 	return ok
 }
 
-// func (p *ImapPlugin) createNotifications(messages []message) ([]*plugins.PushMessage, error) {
+// func (p *ImapPlugin) createNotifications(messages []Message) ([]*plugins.PushMessage, error) {
 // 	timestamp := time.Now()
-// 	pushMsgMap := make(pushes)
+// 	pushMsgMap := make(map[string]*plugins.PushMessage)
 //
 // 	for _, msg := range messages {
 // 		hdr := msg.Payload.mapHeaders()
