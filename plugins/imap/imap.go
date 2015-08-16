@@ -206,20 +206,20 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 				}
 
 				bodyBuffer := new(bytes.Buffer)
-				bodyBuffer.ReadFrom(address.Body)
+				bodyBuffer.ReadFrom(msg.Body)
 
 				messages = append(messages, &Message{
 					uid: goimap.AsNumber(msgInfo.Attrs["UID"]),
 					sender: sender,
 					subject: msg.Header.Get("Subject"),
-					message: bodyBuffer.toString(),
+					message: bodyBuffer.String(),
 				})
 
 				log.Print(fmt.Sprintf("Message: %#v", Message{ // TODO: Remove (debugging only)
 					uid: goimap.AsNumber(msgInfo.Attrs["UID"]),
 					sender: sender,
 					subject: msg.Header.Get("Subject"),
-					message: bodyBuffer.toString(),
+					message: bodyBuffer.String(),
 				}))
 			}
 		}
