@@ -250,6 +250,7 @@ func postOffice(bus *dbus.Connection, postWatch chan *PostWatch) {
 				var pushMessage string
 				if out, err := json.Marshal(n); err == nil {
 					pushMessage = string(out)
+					log.Println("pushMessage: ", pushMessage)
 				} else {
 					log.Printf("Cannot marshall %#v to json: %s", n, err)
 					continue
