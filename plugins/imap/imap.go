@@ -28,10 +28,12 @@ import (
 
 	"bytes"
 	"log"
+	"math"
 	"strings"
 
+
 	"launchpad.net/account-polld/accounts"
-	// "launchpad.net/account-polld/gettext"
+	"launchpad.net/account-polld/gettext"
 	"launchpad.net/account-polld/plugins"
 	"launchpad.net/account-polld/plugins/imap/go-imap/goimap"
 	// "launchpad.net/account-polld/qtcontact"
@@ -62,6 +64,7 @@ type ImapPlugin struct {
 
 type Message struct {
 	uid uint32
+	date time.Time
 	sender string
 	subject string
 	message string
@@ -205,6 +208,11 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 					sender = address.Address
 				}
 
+				date, err := msg.Header.Date()
+				if err != nil {
+					log.Print("imap plugin ", p.accountId, ": failed to get date from message header: ", err)
+				}
+
 				bodyBuffer := new(bytes.Buffer)
 				bodyBuffer.ReadFrom(msg.Body)
 
@@ -213,6 +221,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 
 				messages = append(messages, &Message{
 					uid: goimap.AsNumber(msgInfo.Attrs["UID"]),
+					date: date,
 					sender: sender,
 					subject: msg.Header.Get("Subject"),
 					message: bodyBuffer.String(),
@@ -229,44 +238,15 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		log.Print(fmt.Sprintf("Message: %#v", *msg))
 	}
 
-	return nil, nil
+	notif := p.createNotifications(messages)
 
-	// This envvar check is to ease testing.
-	// if token := os.Getenv("ACCOUNT_POLLD_TOKEN_GMAIL"); token != "" {
-	// 	authData.AccessToken = token
-	// }
-	//
-	// resp, err := p.requestMessageList(authData.AccessToken)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// messages, err := p.parseMessageListResponse(resp)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	//
-	// // TODO use the batching API defined in https://developers.google.com/gmail/api/guides/batch
-	// for i := range messages {
-	// 	resp, err := p.requestMessage(messages[i].Id, authData.AccessToken)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	messages[i], err = p.parseMessageResponse(resp)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// }
-	// notif, err := p.createNotifications(messages)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return []*plugins.PushMessageBatch{
-	// 	&plugins.PushMessageBatch{
-	// 		Messages:        notif,
-	// 		Limit:           individualNotificationsLimit,
-	// 		OverflowHandler: p.handleOverflow,
-	// 		Tag:             "imap",
-	// 	}}, nil
+	return []*plugins.PushMessageBatch{
+		&plugins.PushMessageBatch{
+			Messages:        notif,
+			Limit:           individualNotificationsLimit,
+			OverflowHandler: p.handleOverflow,
+			Tag:             "imap",
+		}}, nil
 }
 
 func (p *ImapPlugin) reported(id string) bool {
@@ -274,60 +254,45 @@ func (p *ImapPlugin) reported(id string) bool {
 	return ok
 }
 
-// func (p *ImapPlugin) createNotifications(messages []Message) ([]*plugins.PushMessage, error) {
-// 	timestamp := time.Now()
-// 	pushMsgMap := make(map[string]*plugins.PushMessage)
-//
-// 	for _, msg := range messages {
-// 		hdr := msg.Payload.mapHeaders()
-//
-// 		from := hdr[hdrFROM]
-// 		var avatarPath string
-//
-// 		if emailAddress, err := mail.ParseAddress(hdr[hdrFROM]); err == nil {
-// 			if emailAddress.Name != "" {
-// 				from = emailAddress.Name
-// 				avatarPath = qtcontact.GetAvatar(emailAddress.Address)
-// 			}
-// 		}
-// 		msgStamp := hdr.getTimestamp()
-//
-// 		if _, ok := pushMsgMap[msg.ThreadId]; ok {
-// 			// TRANSLATORS: the %s is an appended "from" corresponding to an specific email thread
-// 			pushMsgMap[msg.ThreadId].Notification.Card.Summary += fmt.Sprintf(gettext.Gettext(", %s"), from)
-// 		} else if timestamp.Sub(msgStamp) < timeDelta {
-// 			// TRANSLATORS: the %s is the "from" header corresponding to a specific email
-// 			summary := fmt.Sprintf(gettext.Gettext("%s"), from)
-// 			// TRANSLATORS: the first %s refers to the email "subject", the second %s refers "from"
-// 			body := fmt.Sprintf(gettext.Gettext("%s\n%s"), hdr[hdrSUBJECT], msg.Snippet)
-// 			// fmt with label personal and threadId
-// 			action := fmt.Sprintf(imapDispatchUrl, "personal", msg.ThreadId)
-// 			epoch := hdr.getEpoch()
-// 			pushMsgMap[msg.ThreadId] = plugins.NewStandardPushMessage(summary, body, action, avatarPath, epoch)
-// 		} else {
-// 			log.Print("imap plugin ", p.accountId, ": skipping message id ", msg.Id, " with date ", msgStamp, " older than ", timeDelta)
-// 		}
-// 	}
-// 	pushMsg := make([]*plugins.PushMessage, 0, len(pushMsgMap))
-// 	for _, v := range pushMsgMap {
-// 		pushMsg = append(pushMsg, v)
-// 	}
-// 	return pushMsg, nil
-//
-// }
-// func (p *ImapPlugin) handleOverflow(pushMsg []*plugins.PushMessage) *plugins.PushMessage {
-// 	// TRANSLATORS: This represents a notification summary about more unread emails
-// 	summary := gettext.Gettext("More unread emails available")
-// 	// TODO it would probably be better to grab the estimate that google returns in the message list.
-// 	approxUnreadMessages := len(pushMsg)
-// 	// TRANSLATORS: the first %d refers to approximate additional email message count
-// 	body := fmt.Sprintf(gettext.Gettext("You have about %d more unread messages"), approxUnreadMessages)
-// 	// fmt with label personal and no threadId
-// 	action := fmt.Sprintf(imapDispatchUrl, "personal")
-// 	epoch := time.Now().Unix()
-//
-// 	return plugins.NewStandardPushMessage(summary, body, action, "", epoch)
-// }
+func (p *ImapPlugin) createNotifications(messages []*Message) ([]*plugins.PushMessage) {
+	timestamp := time.Now()
+	pushMsg := make([]*plugins.PushMessage, 0)
+
+	for _, msg := range messages {
+		var avatarPath string // TODO: Implement
+
+		// if emailAddress, err := mail.ParseAddress(hdr[hdrFROM]); err == nil {
+		// 	if emailAddress.Name != "" {
+		// 		from = emailAddress.Name
+		// 		avatarPath = qtcontact.GetAvatar(emailAddress.Address)
+		// 	}
+		// }
+
+		if timestamp.Sub(msg.date) < timeDelta {
+			summary := msg.sender
+			body := fmt.Sprintf("%s\n%s", msg.subject, msg.message[:int(math.Min(float64(len(msg.message) - 1), 100))]) // We do not need more than 100 characters
+			action := "" // TODO: Something like the Gmail implementation: fmt.Sprintf(imapDispatchUrl, "personal", msg.ThreadId)
+			epoch := msg.date.Unix()
+			pushMsg = append(pushMsg, plugins.NewStandardPushMessage(summary, body, action, avatarPath, epoch))
+		} else {
+			log.Print("imap plugin ", p.accountId, ": skipping message id ", msg.uid, " with date ", msg.date, " older than ", timeDelta)
+		}
+	}
+
+	return pushMsg
+}
+
+func (p *ImapPlugin) handleOverflow(pushMsg []*plugins.PushMessage) *plugins.PushMessage {
+	// TRANSLATORS: This represents a notification summary about more unread emails
+	summary := gettext.Gettext("More unread emails available")
+	approxUnreadMessages := len(pushMsg)
+	// TRANSLATORS: the first %d refers to approximate additional email message count
+	body := fmt.Sprintf(gettext.Gettext("You have about %d more unread messages"), approxUnreadMessages)
+	action := "" // TODO: Something generic like in the Gmail plugin: fmt.Sprintf(imapDispatchUrl, "personal")
+	epoch := time.Now().Unix()
+
+	return plugins.NewStandardPushMessage(summary, body, action, "", epoch)
+}
 
 // messageListFilter returns a subset of unread messages where the subset
 // depends on not being in reportedIds. Before returning, reportedIds is
