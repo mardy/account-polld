@@ -234,10 +234,6 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		c.Data = nil
 	}
 
-	for _, msg := range messages {
-		log.Print(fmt.Sprintf("Message: %#v", *msg))
-	}
-
 	notif := p.createNotifications(messages)
 
 	return []*plugins.PushMessageBatch{
