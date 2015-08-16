@@ -271,7 +271,7 @@ func (p *ImapPlugin) createNotifications(messages []*Message) ([]*plugins.PushMe
 		if timestamp.Sub(msg.date) < timeDelta {
 			summary := msg.sender
 			body := fmt.Sprintf("%s\n%s", msg.subject, msg.message[:int(math.Min(float64(len(msg.message) - 1), 100))]) // We do not need more than 100 characters
-			action := "" // TODO: Something like the Gmail implementation: fmt.Sprintf(imapDispatchUrl, "personal", msg.ThreadId)
+			action := "https://mail.google.com" // TODO: Something like the Gmail implementation: fmt.Sprintf(imapDispatchUrl, "personal", msg.ThreadId)
 			epoch := msg.date.Unix()
 			pushMsg = append(pushMsg, plugins.NewStandardPushMessage(summary, body, action, avatarPath, epoch))
 		} else {
@@ -288,7 +288,7 @@ func (p *ImapPlugin) handleOverflow(pushMsg []*plugins.PushMessage) *plugins.Pus
 	approxUnreadMessages := len(pushMsg)
 	// TRANSLATORS: the first %d refers to approximate additional email message count
 	body := fmt.Sprintf(gettext.Gettext("You have about %d more unread messages"), approxUnreadMessages)
-	action := "" // TODO: Something generic like in the Gmail plugin: fmt.Sprintf(imapDispatchUrl, "personal")
+	action := "https://mail.google.com" // TODO: Something generic like in the Gmail plugin: fmt.Sprintf(imapDispatchUrl, "personal")
 	epoch := time.Now().Unix()
 
 	return plugins.NewStandardPushMessage(summary, body, action, "", epoch)
