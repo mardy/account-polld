@@ -192,7 +192,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		for _, rsp := range cmd.Data {
 			msgInfo := rsp.MessageInfo()
 			body := goimap.AsBytes(msgInfo.Attrs["BODY"])
-			if msg, _ := mail.ReadMessage(bytes.NewReader(body)); msg != nil {
+			if msg, err := mail.ReadMessage(bytes.NewReader(body)); msg != nil {
 				rawAddress := goimap.AsString(msg.Header.Get("From"))
 				address, err := mail.ParseAddress(rawAddress)
 				var sender string
@@ -221,14 +221,13 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 					subject: msg.Header.Get("Subject"),
 					message: bodyBuffer.String(),
 				}))
+			} else if err != nil {
+				log.Print("imap plugin ", p.accountId, ": failed to parse message body: ", err)
 			}
 		}
 		cmd.Data = nil
 		c.Data = nil
 	}
-
-	// Log the messages
-	log.Print(fmt.Sprintf("Message subjects: %v", messages))
 
 	return nil, nil
 
