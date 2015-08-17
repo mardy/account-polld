@@ -29,6 +29,7 @@ import (
 	"bytes"
 	"log"
 	"math"
+	"strconv"
 	"strings"
 
 
@@ -46,7 +47,7 @@ const (
 	pluginName                   = "imap"
 )
 
-type reportedIdMap map[uint32]time.Time
+type reportedIdMap map[string]time.Time
 
 // Type for sorting an []uint32 slice
 type Uint32Slice []uint32
@@ -102,7 +103,7 @@ func (ids reportedIdMap) persist(accountId uint) (err error) {
 	return nil
 }
 
-func (p *ImapPlugin) reported(id uint32) bool {
+func (p *ImapPlugin) reported(id string) bool {
 	_, ok := p.reportedIds[id]
 	return ok
 }
@@ -314,10 +315,11 @@ func (p *ImapPlugin) uidFilter(uids []uint32) (newUids []uint32, uidsToReport re
 	uidsToReport = make(reportedIdMap)
 
 	for _, uid := range uids {
-		if !p.reported(uid) {
+		uidString := strconv.FormatUint(uint64(uid), 10)
+		if !p.reported(uidString) {
 			newUids = append(newUids, uid)
 		}
-		uidsToReport[uid] = time.Now()
+		uidsToReport[uidString] = time.Now()
 	}
 
 	return newUids, uidsToReport
