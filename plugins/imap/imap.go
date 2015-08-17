@@ -102,6 +102,11 @@ func (ids reportedIdMap) persist(accountId uint) (err error) {
 	return nil
 }
 
+func (p *ImapPlugin) reported(id uint32) bool {
+	_, ok := p.reportedIds[id]
+	return ok
+}
+
 func New(accountId uint) *ImapPlugin {
 	reportedIds, err := idsFromPersist(accountId)
 	if err != nil {
@@ -186,6 +191,8 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	unseenUids := cmd.Data[0].SearchResults()
 	newUids, uidsToReport := p.uidFilter(unseenUids)
 
+	log.Print(fmt.Sprintf("unseenUids: %v,\nnewUids: %v,\nuidsToReport: %v"), unseenUids, newUids, uidsToReport)
+
 	messages := []*Message{}
 
 	if len(newUids) > 0 {
@@ -260,11 +267,6 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 			OverflowHandler: p.handleOverflow,
 			Tag:             "imap",
 		}}, nil
-}
-
-func (p *ImapPlugin) reported(id uint32) bool {
-	_, ok := p.reportedIds[id]
-	return ok
 }
 
 func (p *ImapPlugin) createNotifications(messages []*Message) ([]*plugins.PushMessage) {
