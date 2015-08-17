@@ -147,7 +147,6 @@ func (a *AccountManager) poll() {
 		for _, b := range bs {
 			log.Println("Account", a.authData.AccountId, "has", len(b.Messages), b.Tag, "updates to report")
 		}
-		log.Println(fmt.Sprintf("PostWatch: %#v", PostWatch{batches: bs, appId: a.plugin.ApplicationId()}))
 		a.postWatch <- &PostWatch{batches: bs, appId: a.plugin.ApplicationId()}
 		a.doneChan <- nil
 	}
