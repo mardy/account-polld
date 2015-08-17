@@ -191,8 +191,6 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	unseenUids := cmd.Data[0].SearchResults()
 	newUids, uidsToReport := p.uidFilter(unseenUids)
 
-	log.Print(fmt.Sprintf("unseenUids: %v,\nnewUids: %v,\nuidsToReport: %v"), unseenUids, newUids, uidsToReport)
-
 	messages := []*Message{}
 
 	if len(newUids) > 0 {
