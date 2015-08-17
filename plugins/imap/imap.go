@@ -18,7 +18,7 @@ package imap
 
 import (
 	// "encoding/json"
-	"fmt"
+	// "fmt"
 	// "net/http"
 	"net/mail"
 	// "net/url"
