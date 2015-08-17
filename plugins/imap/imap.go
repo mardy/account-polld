@@ -23,7 +23,7 @@ import (
 	"net/mail"
 	// "net/url"
 	// "os"
-	// "sort"
+	"sort"
 	"time"
 
 	"bytes"
@@ -46,7 +46,14 @@ const (
 	pluginName                   = "imap"
 )
 
-type reportedIdMap map[string]time.Time
+type reportedIdMap map[uint32]time.Time
+
+// Type for sorting an []uint32 slice
+type Uint32Slice []uint32
+
+func (p Uint32Slice) Len() int           { return len(p) }
+func (p Uint32Slice) Less(i, j int) bool { return p[i] < p[j] }
+func (p Uint32Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 // timeDelta defines how old messages can be to be reported.
 var timeDelta = time.Duration(time.Hour * 24)
@@ -75,7 +82,7 @@ func idsFromPersist(accountId uint) (ids reportedIdMap, err error) {
 	if err != nil {
 		return nil, err
 	}
-	// discard old ids
+	// Discard old ids
 	timestamp := time.Now()
 	for k, v := range ids {
 		delta := timestamp.Sub(v)
@@ -168,70 +175,80 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	}
 	c.Data = nil
 
-	// Get all uids of unseen mails // TODO: max limit!
+	// Get all uids of unseen mails // TODO: max limit?
 	cmd, err := goimap.Wait(c.UIDSearch("1:* UNSEEN"))
 	if err != nil {
 		log.Print("imap plugin ", p.accountId, ": failed to get unseen messages: ", err)
 		return nil, err
 	}
 
-	// fetch unread messages by ids
-	set, _ := goimap.NewSeqSet("")
-	set.AddNum(cmd.Data[0].SearchResults()...) // TODO: Only those which we have not fetched already in a previous iteration
-	cmd, err = c.UIDFetch(set, "RFC822", "UID", "BODY[]")
-	if err != nil {
-		log.Print("imap plugin ", p.accountId, ": failed fetch messages by uids: ", err)
-		return nil, err
-	}
+	// Filter for those unread messages for which we haven't requested information from the server yet
+	unseenUids := cmd.Data[0].SearchResults()
+	newUids, uidsToReport := p.uidFilter(unseenUids)
 
 	messages := []*Message{}
 
-	// Process responses while the command is running
-	for cmd.InProgress() {
-		// Wait for the next response (no timeout)
-		c.Recv(-1)
-
-		// Process command data
-		for _, rsp := range cmd.Data {
-			msgInfo := rsp.MessageInfo()
-			body := goimap.AsBytes(msgInfo.Attrs["BODY[]"])
-			if msg, err := mail.ReadMessage(bytes.NewReader(body)); msg != nil {
-				rawAddress := goimap.AsString(msg.Header.Get("From"))
-				address, err := mail.ParseAddress(rawAddress)
-				var sender string
-				if err != nil {
-					log.Print("imap plugin ", p.accountId, ": failed to parse email address: ", err)
-					sender = rawAddress
-				} else if len(address.Name) > 0 {
-					sender = address.Name
-				} else {
-					sender = address.Address
-				}
-
-				date, err := msg.Header.Date()
-				if err != nil {
-					log.Print("imap plugin ", p.accountId, ": failed to get date from message header: ", err)
-				}
-
-				bodyBuffer := new(bytes.Buffer)
-				bodyBuffer.ReadFrom(msg.Body)
-
-				// TODO: Support multipart messages
-				// Library: github.com/jhillyerd/go.enmime
-
-				messages = append(messages, &Message{
-					uid: goimap.AsNumber(msgInfo.Attrs["UID"]),
-					date: date,
-					sender: sender,
-					subject: msg.Header.Get("Subject"),
-					message: bodyBuffer.String(),
-				})
-			} else if err != nil {
-				log.Print("imap plugin ", p.accountId, ": failed to parse message body: ", err)
-			}
+	if len(newUids) > 0 {
+		// Fetch unread messages by their uids
+		set, _ := goimap.NewSeqSet("")
+		set.AddNum(newUids...)
+		cmd, err = c.UIDFetch(set, "RFC822", "UID", "BODY[]")
+		if err != nil {
+			log.Print("imap plugin ", p.accountId, ": failed fetch messages by uids: ", err)
+			return nil, err
 		}
-		cmd.Data = nil
-		c.Data = nil
+
+		// Process responses while the command is running
+		for cmd.InProgress() {
+			// Wait for the next response (no timeout)
+			c.Recv(-1)
+
+			// Process command data
+			for _, rsp := range cmd.Data {
+				msgInfo := rsp.MessageInfo()
+				body := goimap.AsBytes(msgInfo.Attrs["BODY[]"])
+				if msg, err := mail.ReadMessage(bytes.NewReader(body)); msg != nil {
+					rawAddress := goimap.AsString(msg.Header.Get("From"))
+					address, err := mail.ParseAddress(rawAddress)
+					var sender string
+					if err != nil {
+						log.Print("imap plugin ", p.accountId, ": failed to parse email address: ", err)
+						sender = rawAddress
+					} else if len(address.Name) > 0 {
+						sender = address.Name
+					} else {
+						sender = address.Address
+					}
+
+					date, err := msg.Header.Date()
+					if err != nil {
+						log.Print("imap plugin ", p.accountId, ": failed to get date from message header: ", err)
+					}
+
+					bodyBuffer := new(bytes.Buffer)
+					bodyBuffer.ReadFrom(msg.Body)
+
+					// TODO: Support multipart messages
+					// Library: github.com/jhillyerd/go.enmime
+
+					messages = append(messages, &Message{
+						uid: goimap.AsNumber(msgInfo.Attrs["UID"]),
+						date: date,
+						sender: sender,
+						subject: msg.Header.Get("Subject"),
+						message: bodyBuffer.String(),
+					})
+				} else if err != nil {
+					log.Print("imap plugin ", p.accountId, ": failed to parse message body: ", err)
+				}
+			}
+			cmd.Data = nil
+			c.Data = nil
+		}
+
+		// Report uids after polling succeeded
+		p.reportedIds = uidsToReport
+		p.reportedIds.persist(p.accountId)
 	}
 
 	notif := p.createNotifications(messages)
@@ -245,7 +262,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		}}, nil
 }
 
-func (p *ImapPlugin) reported(id string) bool {
+func (p *ImapPlugin) reported(id uint32) bool {
 	_, ok := p.reportedIds[id]
 	return ok
 }
@@ -290,21 +307,18 @@ func (p *ImapPlugin) handleOverflow(pushMsg []*plugins.PushMessage) *plugins.Pus
 	return plugins.NewStandardPushMessage(summary, body, action, "", epoch)
 }
 
-// messageListFilter returns a subset of unread messages where the subset
-// depends on not being in reportedIds. Before returning, reportedIds is
-// updated with the new list of unread messages.
-// func (p *ImapPlugin) messageListFilter(messages []message) []message {
-// 	sort.Sort(byId(messages))
-// 	var reportMsg []message
-// 	var ids = make(reportedIdMap)
-//
-// 	for _, msg := range messages {
-// 		if !p.reported(msg.Id) {
-// 			reportMsg = append(reportMsg, msg)
-// 		}
-// 		ids[msg.Id] = time.Now()
-// 	}
-// 	p.reportedIds = ids
-// 	p.reportedIds.persist(p.accountId)
-// 	return reportMsg
-// }
+// uidFilter filters a list of memssage uids for those which have not been reported yet.
+// It also returns a list of messages which need to be reported and sorts its output.
+func (p *ImapPlugin) uidFilter(uids []uint32) (newUids []uint32, uidsToReport reportedIdMap) {
+	sort.Sort(Uint32Slice(uids))
+	uidsToReport = make(reportedIdMap)
+
+	for _, uid := range uids {
+		if !p.reported(uid) {
+			newUids = append(newUids, uid)
+		}
+		uidsToReport[uid] = time.Now()
+	}
+
+	return newUids, uidsToReport
+}
