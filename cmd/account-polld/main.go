@@ -105,42 +105,18 @@ func monitorAccounts(postWatch chan *PostWatch, pollBus *pollbus.PollBus) {
 	// map: account id -> account manager
 	mgr := make(map[uint]*AccountManager)
 
-L:
 	for {
 		select {
+		// Handle account creation, new account data and account deletion
 		case data := <-webappWatcher.C:
-			handleWatcherData(webappWatcher, mgr, data, postWatch)
-		case data := <-imapWatcher.C: // TODO: Share code with above!
-			if account, ok := mgr[data.AccountId]; ok {
-				if data.Enabled {
-					log.Println("New account data for existing account with id", data.AccountId)
-					account.penaltyCount = 0
-					account.updateAuthData(data)
-					account.Poll(false)
-				} else {
-					log.Println("Delete account", data.AccountId)
-					account.Delete()
-					delete(mgr, data.AccountId)
-				}
-			} else if data.Enabled {
-				var plugin plugins.Plugin
-				switch data.ServiceName {
-				case SERVICENAME_IMAP:
-					log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
-					plugin = imap.New(data.AccountId)
-				default:
-					log.Println("Unhandled account with id", data.AccountId, "for", data.ServiceName)
-					continue L
-				}
-				mgr[data.AccountId] = NewAccountManager(imapWatcher, postWatch, plugin)
-				mgr[data.AccountId].updateAuthData(data)
-				mgr[data.AccountId].Poll(true)
-			}
+			handleWatcherData(webappWatcher, postWatch, mgr, data)
+		case data := <-imapWatcher.C:
+			handleWatcherData(imapWatcher, postWatch, mgr, data)
+		// Respond to dbus poll requests
 		case <-pollBus.PollChan:
 			var wg sync.WaitGroup
 			for _, v := range mgr {
-				if v.authData.Error != plugins.ErrTokenExpired { // Do not poll if the new token
-					// hasn't been loaded yet
+				if v.authData.Error != plugins.ErrTokenExpired { // Do not poll if the new token hasn't been loaded yet
 					wg.Add(1)
 					go func(accountManager *AccountManager) {
 						defer wg.Done()
@@ -165,7 +141,7 @@ L:
 	}
 }
 
-func handleWatcherData(watcher *accounts.Watcher, mgr map[uint]*AccountManager, data accounts.AuthData, postWatch chan *PostWatch) {
+func handleWatcherData(watcher *accounts.Watcher, postWatch chan *PostWatch, mgr map[uint]*AccountManager, data accounts.AuthData) {
 	if account, ok := mgr[data.AccountId]; ok {
 		if data.Enabled {
 			log.Println("New account data for existing account with id", data.AccountId)
@@ -183,13 +159,14 @@ func handleWatcherData(watcher *accounts.Watcher, mgr map[uint]*AccountManager, 
 			log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
 			plugin = gmail.New(data.AccountId)
 		case SERVICENAME_FACEBOOK:
-			// This is just stubbed until the plugin exists.
 			log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
 			plugin = facebook.New(data.AccountId)
 		case SERVICENAME_TWITTER:
-			// This is just stubbed until the plugin exists.
 			log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
 			plugin = twitter.New()
+		case SERVICENAME_IMAP:
+			log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
+			plugin = imap.New(data.AccountId)
 		default:
 			log.Println("Unhandled account with id", data.AccountId, "for", data.ServiceName)
 		}
