@@ -109,38 +109,7 @@ L:
 	for {
 		select {
 		case data := <-webappWatcher.C:
-			if account, ok := mgr[data.AccountId]; ok {
-				if data.Enabled {
-					log.Println("New account data for existing account with id", data.AccountId)
-					account.penaltyCount = 0
-					account.updateAuthData(data)
-					account.Poll(false)
-				} else {
-					account.Delete()
-					delete(mgr, data.AccountId)
-				}
-			} else if data.Enabled {
-				var plugin plugins.Plugin
-				switch data.ServiceName {
-				case SERVICENAME_GMAIL:
-					log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
-					plugin = gmail.New(data.AccountId)
-				case SERVICENAME_FACEBOOK:
-					// This is just stubbed until the plugin exists.
-					log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
-					plugin = facebook.New(data.AccountId)
-				case SERVICENAME_TWITTER:
-					// This is just stubbed until the plugin exists.
-					log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
-					plugin = twitter.New()
-				default:
-					log.Println("Unhandled account with id", data.AccountId, "for", data.ServiceName)
-					continue L
-				}
-				mgr[data.AccountId] = NewAccountManager(webappWatcher, postWatch, plugin)
-				mgr[data.AccountId].updateAuthData(data)
-				mgr[data.AccountId].Poll(true)
-			}
+			handleWatcherData(webappWatcher, mgr, data, postWatch)
 		case data := <-imapWatcher.C: // TODO: Share code with above!
 			if account, ok := mgr[data.AccountId]; ok {
 				if data.Enabled {
@@ -192,6 +161,42 @@ L:
 			}
 			wg.Wait()
 			pollBus.SignalDone()
+		}
+	}
+}
+
+func handleWatcherData(watcher *accounts.Watcher, mgr map[uint]*AccountManager, data accounts.AuthData, postWatch chan *PostWatch) {
+	if account, ok := mgr[data.AccountId]; ok {
+		if data.Enabled {
+			log.Println("New account data for existing account with id", data.AccountId)
+			account.penaltyCount = 0
+			account.updateAuthData(data)
+			account.Poll(false)
+		} else {
+			account.Delete()
+			delete(mgr, data.AccountId)
+		}
+	} else if data.Enabled {
+		var plugin plugins.Plugin = nil
+		switch data.ServiceName {
+		case SERVICENAME_GMAIL:
+			log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
+			plugin = gmail.New(data.AccountId)
+		case SERVICENAME_FACEBOOK:
+			// This is just stubbed until the plugin exists.
+			log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
+			plugin = facebook.New(data.AccountId)
+		case SERVICENAME_TWITTER:
+			// This is just stubbed until the plugin exists.
+			log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
+			plugin = twitter.New()
+		default:
+			log.Println("Unhandled account with id", data.AccountId, "for", data.ServiceName)
+		}
+		if plugin != nil {
+			mgr[data.AccountId] = NewAccountManager(watcher, postWatch, plugin)
+			mgr[data.AccountId].updateAuthData(data)
+			mgr[data.AccountId].Poll(true)
 		}
 	}
 }
