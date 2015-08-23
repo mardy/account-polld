@@ -141,17 +141,17 @@ L:
 				mgr[data.AccountId].updateAuthData(data)
 				mgr[data.AccountId].Poll(true)
 			}
-		case data := <-imapWatcher.C:
-			if _, ok := mgr[data.AccountId]; ok { // replace "_" by "account"
+		case data := <-imapWatcher.C: // TODO: Share code with above!
+			if account, ok := mgr[data.AccountId]; ok {
 				if data.Enabled {
 					log.Println("New account data for existing account with id", data.AccountId)
-					// account.penaltyCount = 0
-					// account.updateAuthData(data)
-					// account.Poll(false)
+					account.penaltyCount = 0
+					account.updateAuthData(data)
+					account.Poll(false)
 				} else {
 					log.Println("Delete account", data.AccountId)
-					// account.Delete()
-					// delete(mgr, data.AccountId)
+					account.Delete()
+					delete(mgr, data.AccountId)
 				}
 			} else if data.Enabled {
 				var plugin plugins.Plugin
