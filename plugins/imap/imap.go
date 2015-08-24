@@ -282,7 +282,7 @@ func (p *ImapPlugin) createNotifications(messages []*Message) []*plugins.PushMes
 
 		if timestamp.Sub(msg.date) < timeDelta {
 			summary := sender
-			body := fmt.Sprintf("%s\n%s", msg.subject, msg.message[:int(math.Min(float64(len(msg.message)-1), 100))]) // We do not need more than 100 characters
+			body := fmt.Sprintf("%s\n%s", msg.subject, msg.message[:int(math.Min(math.Max(float64(len(msg.message)-1), 0), 100))]) // We do not need more than 100 characters (math.Max() to make sure we get no slice bounds out of range error due to the length being 0)
 			action := "imap://asdf"                                                                                   // TODO: Something like the Gmail implementation: fmt.Sprintf(imapDispatchUrl, "personal", msg.ThreadId)
 			epoch := msg.date.Unix()
 			pushMsg = append(pushMsg, plugins.NewStandardPushMessage(summary, body, action, avatarPath, epoch))
