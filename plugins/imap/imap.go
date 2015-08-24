@@ -32,6 +32,7 @@ import (
 	"launchpad.net/account-polld/gettext"
 	"launchpad.net/account-polld/plugins"
 	"launchpad.net/account-polld/plugins/imap/go-imap/goimap"
+	"launchpad.net/account-polld/plugins/imap/goenmime"
 	"launchpad.net/account-polld/qtcontact"
 )
 
@@ -216,18 +217,19 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 						log.Print("imap plugin ", p.accountId, ": failed to get date from message header: ", err)
 					}
 
-					bodyBuffer := new(bytes.Buffer)
-					bodyBuffer.ReadFrom(msg.Body)
-
-					// TODO: Support multipart messages
-					// Library: github.com/jhillyerd/go.enmime
+					// Parse the message to retrieve its body as plain text (especially needed for multipart messages)
+					var message string
+					mimeBody, err := goenmime.ParseMIMEBody(msg)
+					if err != nil {
+						message = mimeBody.Text
+					}
 
 					messages = append(messages, &Message{
 						uid:     goimap.AsNumber(msgInfo.Attrs["UID"]),
 						date:    date,
 						from:    from,
 						subject: msg.Header.Get("Subject"),
-						message: bodyBuffer.String(),
+						message: message,
 					})
 				} else if err != nil {
 					log.Print("imap plugin ", p.accountId, ": failed to parse message body: ", err)
