@@ -17,21 +17,16 @@
 package imap
 
 import (
-	// "encoding/json"
-	"fmt"
-	// "net/http"
-	"net/mail"
-	// "net/url"
-	// "os"
-	"sort"
-	"time"
-
 	"bytes"
+	"fmt"
 	"log"
 	"math"
+	"net/mail"
+	"sort"
 	"strconv"
 	"strings"
-
+	"time"
+	// "net/url"
 
 	"launchpad.net/account-polld/accounts"
 	"launchpad.net/account-polld/gettext"
@@ -71,9 +66,9 @@ type ImapPlugin struct {
 }
 
 type Message struct {
-	uid uint32
-	date time.Time
-	from string
+	uid     uint32
+	date    time.Time
+	from    string
 	subject string
 	message string
 }
@@ -228,9 +223,9 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 					// Library: github.com/jhillyerd/go.enmime
 
 					messages = append(messages, &Message{
-						uid: goimap.AsNumber(msgInfo.Attrs["UID"]),
-						date: date,
-						from: from,
+						uid:     goimap.AsNumber(msgInfo.Attrs["UID"]),
+						date:    date,
+						from:    from,
 						subject: msg.Header.Get("Subject"),
 						message: bodyBuffer.String(),
 					})
@@ -258,7 +253,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		}}, nil
 }
 
-func (p *ImapPlugin) createNotifications(messages []*Message) ([]*plugins.PushMessage) {
+func (p *ImapPlugin) createNotifications(messages []*Message) []*plugins.PushMessage {
 	timestamp := time.Now()
 	pushMsg := make([]*plugins.PushMessage, 0)
 
@@ -285,8 +280,8 @@ func (p *ImapPlugin) createNotifications(messages []*Message) ([]*plugins.PushMe
 
 		if timestamp.Sub(msg.date) < timeDelta {
 			summary := sender
-			body := fmt.Sprintf("%s\n%s", msg.subject, msg.message[:int(math.Min(float64(len(msg.message) - 1), 100))]) // We do not need more than 100 characters
-			action := "imap://asdf" // TODO: Something like the Gmail implementation: fmt.Sprintf(imapDispatchUrl, "personal", msg.ThreadId)
+			body := fmt.Sprintf("%s\n%s", msg.subject, msg.message[:int(math.Min(float64(len(msg.message)-1), 100))]) // We do not need more than 100 characters
+			action := "imap://asdf"                                                                                   // TODO: Something like the Gmail implementation: fmt.Sprintf(imapDispatchUrl, "personal", msg.ThreadId)
 			epoch := msg.date.Unix()
 			pushMsg = append(pushMsg, plugins.NewStandardPushMessage(summary, body, action, avatarPath, epoch))
 		} else {
