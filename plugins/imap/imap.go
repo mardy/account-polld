@@ -37,7 +37,7 @@ import (
 	"launchpad.net/account-polld/gettext"
 	"launchpad.net/account-polld/plugins"
 	"launchpad.net/account-polld/plugins/imap/go-imap/goimap"
-	// "launchpad.net/account-polld/qtcontact"
+	"launchpad.net/account-polld/qtcontact"
 )
 
 const (
@@ -73,7 +73,7 @@ type ImapPlugin struct {
 type Message struct {
 	uid uint32
 	date time.Time
-	sender string
+	from string
 	subject string
 	message string
 }
@@ -214,17 +214,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 				msgInfo := rsp.MessageInfo()
 				body := goimap.AsBytes(msgInfo.Attrs["BODY[]"])
 				if msg, err := mail.ReadMessage(bytes.NewReader(body)); msg != nil {
-					rawAddress := goimap.AsString(msg.Header.Get("From"))
-					address, err := mail.ParseAddress(rawAddress)
-					var sender string
-					if err != nil {
-						log.Print("imap plugin ", p.accountId, ": failed to parse email address: ", err)
-						sender = rawAddress
-					} else if len(address.Name) > 0 {
-						sender = address.Name
-					} else {
-						sender = address.Address
-					}
+					from := goimap.AsString(msg.Header.Get("From"))
 
 					date, err := msg.Header.Date()
 					if err != nil {
@@ -240,7 +230,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 					messages = append(messages, &Message{
 						uid: goimap.AsNumber(msgInfo.Attrs["UID"]),
 						date: date,
-						sender: sender,
+						from: from,
 						subject: msg.Header.Get("Subject"),
 						message: bodyBuffer.String(),
 					})
@@ -273,17 +263,28 @@ func (p *ImapPlugin) createNotifications(messages []*Message) ([]*plugins.PushMe
 	pushMsg := make([]*plugins.PushMessage, 0)
 
 	for _, msg := range messages {
-		var avatarPath string // TODO: Implement
+		// Parse the message's raw email address
+		address, err := mail.ParseAddress(msg.from)
 
-		// if emailAddress, err := mail.ParseAddress(hdr[hdrFROM]); err == nil {
-		// 	if emailAddress.Name != "" {
-		// 		from = emailAddress.Name
-		// 		avatarPath = qtcontact.GetAvatar(emailAddress.Address)
-		// 	}
-		// }
+		// Get the sender's name
+		var sender string
+		if err != nil {
+			log.Print("imap plugin ", p.accountId, ": failed to parse email address: ", err)
+			sender = msg.from
+		} else if len(address.Name) > 0 {
+			sender = address.Name
+		} else {
+			sender = address.Address
+		}
+
+		// Get the sender's avatar if the email address is in the user's contacts list
+		var avatarPath string
+		if len(address.Address) > 0 {
+			avatarPath = qtcontact.GetAvatar(address.Address)
+		}
 
 		if timestamp.Sub(msg.date) < timeDelta {
-			summary := msg.sender
+			summary := sender
 			body := fmt.Sprintf("%s\n%s", msg.subject, msg.message[:int(math.Min(float64(len(msg.message) - 1), 100))]) // We do not need more than 100 characters
 			action := "imap://asdf" // TODO: Something like the Gmail implementation: fmt.Sprintf(imapDispatchUrl, "personal", msg.ThreadId)
 			epoch := msg.date.Unix()
