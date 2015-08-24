@@ -221,6 +221,8 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 					var message string
 					mimeBody, err := goenmime.ParseMIMEBody(msg)
 					if err != nil {
+						log.Print("imap plugin ", p.accountId, ": failed to parse mime body: ", err)
+					} else {
 						message = mimeBody.Text
 					}
 
