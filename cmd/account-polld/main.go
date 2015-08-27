@@ -14,6 +14,7 @@
  with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+
 package main
 
 import (
@@ -109,9 +110,9 @@ func monitorAccounts(postWatch chan *PostWatch, pollBus *pollbus.PollBus) {
 		select {
 		// Handle account creation, new account data and account deletion
 		case data := <-webappWatcher.C:
-			handleWatcherData(webappWatcher, postWatch, mgr, data)
+			handleWatcherData(webappWatcher, postWatch, mgr, data, SERVICETYPE_WEBAPPS)
 		case data := <-imapWatcher.C:
-			handleWatcherData(imapWatcher, postWatch, mgr, data)
+			handleWatcherData(imapWatcher, postWatch, mgr, data, SERVICETYPE_IMAP)
 		// Respond to dbus poll requests
 		case <-pollBus.PollChan:
 			var wg sync.WaitGroup
@@ -141,7 +142,7 @@ func monitorAccounts(postWatch chan *PostWatch, pollBus *pollbus.PollBus) {
 	}
 }
 
-func handleWatcherData(watcher *accounts.Watcher, postWatch chan *PostWatch, mgr map[uint]*AccountManager, data accounts.AuthData) {
+func handleWatcherData(watcher *accounts.Watcher, postWatch chan *PostWatch, mgr map[uint]*AccountManager, data accounts.AuthData, serviceType string) {
 	if account, ok := mgr[data.AccountId]; ok {
 		if data.Enabled {
 			log.Println("New account data for existing account with id", data.AccountId)
@@ -154,21 +155,23 @@ func handleWatcherData(watcher *accounts.Watcher, postWatch chan *PostWatch, mgr
 		}
 	} else if data.Enabled {
 		var plugin plugins.Plugin = nil
-		switch data.ServiceName {
-		case SERVICENAME_GMAIL:
-			log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
-			plugin = gmail.New(data.AccountId)
-		case SERVICENAME_FACEBOOK:
-			log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
-			plugin = facebook.New(data.AccountId)
-		case SERVICENAME_TWITTER:
-			log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
-			plugin = twitter.New()
-		case SERVICENAME_IMAP:
+		if serviceType == SERVICETYPE_IMAP { // Allow any app to display imap notifications
 			log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
 			plugin = imap.New(data.AccountId)
-		default:
-			log.Println("Unhandled account with id", data.AccountId, "for", data.ServiceName)
+		} else {
+			switch data.ServiceName {
+			case SERVICENAME_GMAIL:
+				log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
+				plugin = gmail.New(data.AccountId)
+			case SERVICENAME_FACEBOOK:
+				log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
+				plugin = facebook.New(data.AccountId)
+			case SERVICENAME_TWITTER:
+				log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
+				plugin = twitter.New()
+			default:
+				log.Println("Unhandled account with id", data.AccountId, "for", data.ServiceName)
+			}
 		}
 		if plugin != nil {
 			mgr[data.AccountId] = NewAccountManager(watcher, postWatch, plugin)
