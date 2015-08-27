@@ -100,7 +100,7 @@ static void account_info_notify(AccountInfo *info, GError *error) {
     char *client_secret = NULL;
     char *access_token = NULL;
     char *token_secret = NULL;
-    int type = TYPE_UNDEFINED; /* TODO: pass type to auth data? other variable names when password authentication? leave some of them out? */
+    int auth_type = TYPE_UNDEFINED; /* TODO: pass type to auth data? other variable names when password authentication? leave some of them out? */
 
     // trace("GVariant:");
     // trace("%s", g_variant_print(info->auth_params, TRUE));
@@ -113,25 +113,25 @@ static void account_info_notify(AccountInfo *info, GError *error) {
         g_variant_lookup(info->auth_params, "ClientSecret", "&s", &client_secret);
         /* Fall back to OAuth 1 names if no OAuth 2 parameters could be found */
         if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
-            type = TYPE_OAUTH2;
+            auth_type = TYPE_OAUTH2;
         } else {
             g_variant_lookup(info->auth_params, "ConsumerKey", "&s", &client_id);
             g_variant_lookup(info->auth_params, "ConsumerSecret", "&s", &client_secret);
             /* Fall back to password authentication if no OAuth 1 parameters could be found */
             if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
-                type = TYPE_OAUTH1;
+                auth_type = TYPE_OAUTH1;
             }
         }
     }
     if (info->session_data != NULL) {
-        if (type != TYPE_UNDEFINED) {
+        if (auth_type == TYPE_OAUTH2 || auth_type == TYPE_OAUTH1) {
             g_variant_lookup(info->session_data, "AccessToken", "&s", &access_token);
             g_variant_lookup(info->session_data, "TokenSecret", "&s", &token_secret);
-        } else {
+        } else if (auth_type == TYPE_UNDEFINED) {
             g_variant_lookup(info->session_data, "UserName", "&s", &client_id);
             g_variant_lookup(info->session_data, "Secret", "&s", &client_secret);
             if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
-                type = TYPE_PASSWORD;
+                auth_type = TYPE_PASSWORD;
             }
         }
     }
