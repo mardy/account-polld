@@ -27,6 +27,7 @@ AccountWatcher *watch_for_service_type(const char *service_type);
 import "C"
 import (
 	"errors"
+	"log"
 	"sync"
 	"unsafe"
 )
@@ -86,6 +87,8 @@ func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char,
 		// Log the error
 		return
 	}
+
+	log.Print("userData: %#v", userData)
 
 	var data AuthData
 	data.AccountId = uint(accountId)
