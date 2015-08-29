@@ -177,7 +177,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	}
 	c.Data = nil
 
-	// Get all uids of unseen mails // TODO: max limit?
+	// Get all uids of unseen mails
 	cmd, err := goimap.Wait(c.UIDSearch("1:* UNSEEN"))
 	if err != nil {
 		log.Print("imap plugin ", p.accountId, ": failed to get unseen messages: ", err)
@@ -186,7 +186,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 
 	// Filter for those unread messages for which we haven't requested information from the server yet
 	unseenUids := cmd.Data[0].SearchResults()
-	newUids, uidsToReport := p.uidFilter(unseenUids)
+	newUids, uidsToReport := p.uidFilter(unseenUids) // TODO: Only fetch the bodies of the 3 most recent ones, but still report the ids of the other ones as well!!!
 
 	messages := []*Message{}
 
