@@ -27,6 +27,8 @@ AccountWatcher *watch_for_service_type(const char *service_type);
 import "C"
 import (
 	"errors"
+	"log"
+	"reflect"
 	"sync"
 	"unsafe"
 )
@@ -76,7 +78,7 @@ func (w *Watcher) Refresh(accountId uint) {
 }
 
 //export authCallback
-func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char, error *C.GError, enabled C.int, clientId, clientSecret, accessToken, tokenSecret *C.char, userData unsafe.Pointer) {
+func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char, error *C.GError, enabled C.int, cAuthData **C.char, cAuthDataLength C.uint, userData unsafe.Pointer) {
 	// Ideally the first argument would be of type
 	// *C.AccountWatcher, but that fails with Go 1.2.
 	authChannelsLock.Lock()
@@ -96,17 +98,23 @@ func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char,
 	if enabled != 0 {
 		data.Enabled = true
 	}
-	if clientId != nil {
-		data.ClientId = C.GoString(clientId)
-	}
-	if clientSecret != nil {
-		data.ClientSecret = C.GoString(clientSecret)
-	}
-	if accessToken != nil {
-		data.AccessToken = C.GoString(accessToken)
-	}
-	if tokenSecret != nil {
-		data.TokenSecret = C.GoString(tokenSecret)
+	if cAuthData != nil && cAuthDataLength > 0 {
+		// Turn the c array of *char to a Go slice of *C.char
+		hdr := reflect.SliceHeader {
+			Data: uintptr(unsafe.Pointer(cAuthData)),
+			Len:  int(cAuthDataLength),
+			Cap:  int(cAuthDataLength),
+		}
+		authDataSlice := *(*[]*C.char)(unsafe.Pointer(&hdr))
+
+		authType := C.GoString(authDataSlice[0])
+		data.ClientId = C.GoString(authDataSlice[1])
+		data.ClientSecret = C.GoString(authDataSlice[2])
+		if len(authDataSlice) >= 5 {
+			data.AccessToken = C.GoString(authDataSlice[3])
+			data.TokenSecret = C.GoString(authDataSlice[4])
+		}
+		log.Print("authType: ", authType)
 	}
 	ch <- data
 }

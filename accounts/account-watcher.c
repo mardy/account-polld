@@ -87,51 +87,65 @@ static void account_info_free(AccountInfo *info) {
     g_free(info);
 }
 
-#define TYPE_UNDEFINED 0
-#define TYPE_OAUTH2    1
-#define TYPE_OAUTH1    2
-#define TYPE_PASSWORD  3
+#define TYPE_UNDEFINED "undefined"
+#define TYPE_OAUTH2    "oauth2"
+#define TYPE_OAUTH1    "oauth1"
+#define TYPE_PASSWORD  "password"
 
 static void account_info_notify(AccountInfo *info, GError *error) {
     AgService *service = ag_account_service_get_service(info->account_service);
 
     const char *service_name = ag_service_get_name(service);
-    char *client_id = NULL;
-    char *client_secret = NULL;
-    char *access_token = NULL;
-    char *token_secret = NULL;
-    int auth_type = TYPE_UNDEFINED; /* TODO: pass type to auth data? other variable names when password authentication? leave some of them out? */
+    GPtrArray *auth_data = g_ptr_array_sized_new(5);
+    char *auth_type = TYPE_UNDEFINED;
 
     // trace("GVariant:");
     // trace("%s", g_variant_print(info->auth_params, TRUE));
-    // trace("Session Data:");
-    // trace("%s", g_variant_print(info->session_data, TRUE));
 
     if (info->auth_params != NULL) {
+        char *client_id = NULL;
+        char *client_secret = NULL;
         /* Look up OAuth 2 parameters */
         g_variant_lookup(info->auth_params, "ClientId", "&s", &client_id);
         g_variant_lookup(info->auth_params, "ClientSecret", "&s", &client_secret);
         /* Fall back to OAuth 1 names if no OAuth 2 parameters could be found */
         if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
             auth_type = TYPE_OAUTH2;
+            g_ptr_array_add(auth_data, auth_type);
+            g_ptr_array_add(auth_data, client_id);
+            g_ptr_array_add(auth_data, client_secret);
         } else {
             g_variant_lookup(info->auth_params, "ConsumerKey", "&s", &client_id);
             g_variant_lookup(info->auth_params, "ConsumerSecret", "&s", &client_secret);
             /* Fall back to password authentication if no OAuth 1 parameters could be found */
             if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
                 auth_type = TYPE_OAUTH1;
+                g_ptr_array_add(auth_data, auth_type);
+                g_ptr_array_add(auth_data, client_id);
+                g_ptr_array_add(auth_data, client_secret);
             }
         }
     }
     if (info->session_data != NULL) {
         if (auth_type == TYPE_OAUTH2 || auth_type == TYPE_OAUTH1) {
+            char *access_token = NULL;
+            char *token_secret = NULL;
             g_variant_lookup(info->session_data, "AccessToken", "&s", &access_token);
             g_variant_lookup(info->session_data, "TokenSecret", "&s", &token_secret);
+            g_ptr_array_add(auth_data, access_token);
+            g_ptr_array_add(auth_data, token_secret);
         } else if (auth_type == TYPE_UNDEFINED) {
-            g_variant_lookup(info->session_data, "UserName", "&s", &client_id);
-            g_variant_lookup(info->session_data, "Secret", "&s", &client_secret);
-            if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
+            char *user_name = NULL;
+            char *secret = NULL;
+            g_variant_lookup(info->session_data, "UserName", "&s", &user_name);
+            g_variant_lookup(info->session_data, "Secret", "&s", &secret);
+            if (user_name != NULL && secret != NULL && strcmp(user_name, "") != 0 && strcmp(secret, "") != 0) {
                 auth_type = TYPE_PASSWORD;
+                g_ptr_array_add(auth_data, auth_type);
+                g_ptr_array_add(auth_data, user_name);
+                g_ptr_array_add(auth_data, secret);
+
+                /* TODO: Handle special data for imap accounts */
             }
         }
     }
@@ -141,11 +155,11 @@ static void account_info_notify(AccountInfo *info, GError *error) {
                             service_name,
                             error,
                             info->enabled,
-                            client_id,
-                            client_secret,
-                            access_token,
-                            token_secret,
+                            (const char **)auth_data->pdata,
+                            auth_data->len,
                             info->watcher->user_data);
+
+    g_ptr_array_free(auth_data, FALSE);
 }
 
 static void account_info_login_cb(GObject *source, GAsyncResult *result, void *user_data) {

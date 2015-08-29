@@ -13,8 +13,7 @@ AccountWatcher *watch_for_service_type(const char *service_type) {
         void (*unused)(void *watcher,
                        unsigned int account_id, char *service_name,
                        GError *error, int enabled,
-                       char *client_id, char *client_secret,
-                       char *access_token, char *token_secret,
+                       char **auth_data, uint auth_data_length,
                        void *user_data) = authCallback;
     }
 

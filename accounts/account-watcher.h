@@ -25,10 +25,8 @@ typedef void (*AccountEnabledCallback)(AccountWatcher *watcher,
                                        const char *service_name,
                                        GError *error,
                                        int enabled,
-                                       const char *client_id,
-                                       const char *client_secret,
-                                       const char *access_token,
-                                       const char *token_secret,
+                                       const char **auth_data,
+                                       uint auth_data_length,
                                        void *user_data);
 
 AccountWatcher *account_watcher_new(const char *service_type,
