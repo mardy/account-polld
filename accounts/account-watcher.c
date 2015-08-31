@@ -85,6 +85,9 @@ static void account_info_free(AccountInfo *info) {
         g_object_unref(info->account_service);
         info->account_service = NULL;
     }
+    if (info->auth_method) {
+        g_free(info->auth_method);
+    }
     g_free(info);
 }
 
@@ -190,7 +193,7 @@ static void account_info_login(AccountInfo *info) {
     AgAuthData *auth_data = ag_account_service_get_auth_data(info->account_service);
     GError *error = NULL;
     trace("Starting authentication session for account %u\n", info->account_id);
-    strcpy(info->auth_method, ag_auth_data_get_method(auth_data));
+    info->auth_method = g_strdup(ag_auth_data_get_method(auth_data));
     info->session = signon_auth_session_new(
         ag_auth_data_get_credentials_id(auth_data),
         info->auth_method, &error);
