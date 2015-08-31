@@ -22,7 +22,7 @@
 
 #include "account-watcher.h"
 
-#define DEBUG
+/* #define DEBUG */
 #ifdef DEBUG
 #  define trace(...) fprintf(stderr, __VA_ARGS__)
 #else
@@ -98,12 +98,12 @@ static void account_info_notify(AccountInfo *info, GError *error) {
     GPtrArray *auth_data = g_ptr_array_sized_new(2);
     char *auth_method = NULL;
 
-    trace("Auth params: %s\n", g_variant_print(info->auth_params, TRUE));
-    trace("Session data: %s\n", g_variant_print(info->session_data, TRUE));
-    trace("Auth method: %s\n", info->auth_method);
+    // trace("Auth params: %s\n", g_variant_print(info->auth_params, TRUE));
+    // trace("Session data: %s\n", g_variant_print(info->session_data, TRUE));
+    // trace("Auth method: %s\n", info->auth_method);
 
     if (error == NULL && info->auth_params != NULL && info->session_data != NULL) {
-        if (strcmp(info->auth_method, "oauth2") == 0) {
+        if (g_strcmp0(info->auth_method, "oauth2") == 0) {
             auth_method = info->auth_method;
 
             /* Look up the client id, the client secret and the access token */
@@ -118,7 +118,7 @@ static void account_info_notify(AccountInfo *info, GError *error) {
             g_ptr_array_add(auth_data, client_id);
             g_ptr_array_add(auth_data, client_secret);
             g_ptr_array_add(auth_data, access_token);
-        } else if (strcmp(info->auth_method, "oauth1") == 0) { // TODO: Check exact name
+        } else if (g_strcmp0(info->auth_method, "oauth1") == 0) {
             auth_method = info->auth_method;
 
             /* Look up the consumer key, the consumer secret, the access token and the token secret */
@@ -136,7 +136,7 @@ static void account_info_notify(AccountInfo *info, GError *error) {
             g_ptr_array_add(auth_data, consumer_secret);
             g_ptr_array_add(auth_data, access_token);
             g_ptr_array_add(auth_data, token_secret);
-        } else if (strcmp(info->auth_method, "password") == 0) {
+        } else if (g_strcmp0(info->auth_method, "password") == 0) {
             auth_method = info->auth_method;
 
             /* Look up the user name and the secret */

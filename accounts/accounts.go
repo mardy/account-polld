@@ -112,7 +112,7 @@ func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char,
 			data.ClientId = C.GoString(authDataSlice[0]) // TODO: Variable naming
 			data.ClientSecret = C.GoString(authDataSlice[1])
 			data.AccessToken = C.GoString(authDataSlice[2])
-		} else if authMethod == "oauth1" { // TODO: Check exact name
+		} else if authMethod == "oauth1" {
 			data.ClientId = C.GoString(authDataSlice[0])
 			data.ClientSecret = C.GoString(authDataSlice[1])
 			data.AccessToken = C.GoString(authDataSlice[2])
