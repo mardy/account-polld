@@ -117,6 +117,7 @@ static void account_info_notify(AccountInfo *info, GError *error) {
             /* Build the result array */
             g_ptr_array_add(auth_data, client_id);
             g_ptr_array_add(auth_data, client_secret);
+            g_ptr_array_add(auth_data, access_token);
         } else if (strcmp(info->auth_method, "oauth1") == 0) { // TODO: Check exact name
             auth_method = info->auth_method;
 
