@@ -78,7 +78,7 @@ func (w *Watcher) Refresh(accountId uint) {
 }
 
 //export authCallback
-func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char, error *C.GError, enabled C.int, cAuthData **C.char, cAuthDataLength C.uint, userData unsafe.Pointer) {
+func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char, error *C.GError, enabled C.int, cAuthMethod *C.char, cAuthData **C.char, cAuthDataLength C.uint, userData unsafe.Pointer) {
 	// Ideally the first argument would be of type
 	// *C.AccountWatcher, but that fails with Go 1.2.
 	authChannelsLock.Lock()
@@ -107,14 +107,22 @@ func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char,
 		}
 		authDataSlice := *(*[]*C.char)(unsafe.Pointer(&hdr))
 
-		authType := C.GoString(authDataSlice[0])
-		data.ClientId = C.GoString(authDataSlice[1])
-		data.ClientSecret = C.GoString(authDataSlice[2])
-		if len(authDataSlice) >= 5 {
-			data.AccessToken = C.GoString(authDataSlice[3])
-			data.TokenSecret = C.GoString(authDataSlice[4])
+		authMethod := C.GoString(cAuthMethod)
+		if authMethod == "oauth2" || authMethod == "oauth1" {
+			data.ClientId = C.GoString(authDataSlice[0]) // TODO: Variable naming
+			data.ClientSecret = C.GoString(authDataSlice[1])
+			data.AccessToken = C.GoString(authDataSlice[2])
+		} else if authMethod == "oauth1" { // TODO: Check exact name
+			data.ClientId = C.GoString(authDataSlice[0])
+			data.ClientSecret = C.GoString(authDataSlice[1])
+			data.AccessToken = C.GoString(authDataSlice[2])
+			data.TokenSecret = C.GoString(authDataSlice[3])
+		} else if authMethod == "password" {
+			data.ClientId = C.GoString(authDataSlice[0])
+			data.ClientSecret = C.GoString(authDataSlice[1])
+		} else {
+			log.Print("Unknown auth method: ", authMethod)
 		}
-		log.Print("authType: ", authType)
 	}
 	ch <- data
 }

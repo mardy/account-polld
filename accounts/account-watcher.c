@@ -22,7 +22,7 @@
 
 #include "account-watcher.h"
 
-/* #define DEBUG */
+#define DEBUG
 #ifdef DEBUG
 #  define trace(...) fprintf(stderr, __VA_ARGS__)
 #else
@@ -51,6 +51,7 @@ struct _AccountInfo {
     SignonAuthSession *session;
     GVariant *auth_params;
     GVariant *session_data;
+    gchar *auth_method;
 
     gulong enabled_signal_id;
     AgAccountId account_id;
@@ -87,67 +88,71 @@ static void account_info_free(AccountInfo *info) {
     g_free(info);
 }
 
-#define TYPE_UNDEFINED "undefined"
-#define TYPE_OAUTH2    "oauth2"
-#define TYPE_OAUTH1    "oauth1"
-#define TYPE_PASSWORD  "password"
-
 static void account_info_notify(AccountInfo *info, GError *error) {
     AgService *service = ag_account_service_get_service(info->account_service);
 
     const char *service_name = ag_service_get_name(service);
-    GPtrArray *auth_data = g_ptr_array_sized_new(5);
-    char *auth_type = TYPE_UNDEFINED;
+    GPtrArray *auth_data = g_ptr_array_sized_new(2);
+    char *auth_method = NULL;
 
-    // trace("GVariant:");
-    // trace("%s", g_variant_print(info->auth_params, TRUE));
+    trace("Auth params: %s\n", g_variant_print(info->auth_params, TRUE));
+    trace("Session data: %s\n", g_variant_print(info->session_data, TRUE));
+    trace("Auth method: %s\n", info->auth_method);
 
-    if (info->auth_params != NULL) {
-        char *client_id = NULL;
-        char *client_secret = NULL;
-        /* Look up OAuth 2 parameters */
-        g_variant_lookup(info->auth_params, "ClientId", "&s", &client_id);
-        g_variant_lookup(info->auth_params, "ClientSecret", "&s", &client_secret);
-        /* Fall back to OAuth 1 names if no OAuth 2 parameters could be found */
-        if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
-            auth_type = TYPE_OAUTH2;
-            g_ptr_array_add(auth_data, auth_type);
+    if (error == NULL && info->auth_params != NULL && info->session_data != NULL) {
+        if (strcmp(info->auth_method, "oauth2") == 0) {
+            auth_method = info->auth_method;
+
+            /* Look up the client id, the client secret and the access token */
+            char *client_id = NULL;
+            char *client_secret = NULL;
+            char *access_token = NULL;
+            g_variant_lookup(info->auth_params, "ClientId", "&s", &client_id);
+            g_variant_lookup(info->auth_params, "ClientSecret", "&s", &client_secret);
+            g_variant_lookup(info->session_data, "AccessToken", "&s", &access_token);
+
+            /* Build the result array */
             g_ptr_array_add(auth_data, client_id);
             g_ptr_array_add(auth_data, client_secret);
-        } else {
-            g_variant_lookup(info->auth_params, "ConsumerKey", "&s", &client_id);
-            g_variant_lookup(info->auth_params, "ConsumerSecret", "&s", &client_secret);
-            /* Fall back to password authentication if no OAuth 1 parameters could be found */
-            if (client_id != NULL && client_secret != NULL && strcmp(client_id, "") != 0 && strcmp(client_secret, "") != 0) {
-                auth_type = TYPE_OAUTH1;
-                g_ptr_array_add(auth_data, auth_type);
-                g_ptr_array_add(auth_data, client_id);
-                g_ptr_array_add(auth_data, client_secret);
-            }
-        }
-    }
-    if (info->session_data != NULL) {
-        if (auth_type == TYPE_OAUTH2 || auth_type == TYPE_OAUTH1) {
+        } else if (strcmp(info->auth_method, "oauth1") == 0) { // TODO: Check exact name
+            auth_method = info->auth_method;
+
+            /* Look up the consumer key, the consumer secret, the access token and the token secret */
+            char *consumer_key = NULL;
+            char *consumer_secret = NULL;
             char *access_token = NULL;
             char *token_secret = NULL;
+            g_variant_lookup(info->auth_params, "ConsumerKey", "&s", &consumer_key);
+            g_variant_lookup(info->auth_params, "ConsumerSecret", "&s", &consumer_secret);
             g_variant_lookup(info->session_data, "AccessToken", "&s", &access_token);
             g_variant_lookup(info->session_data, "TokenSecret", "&s", &token_secret);
+
+            /* Build the result array */
+            g_ptr_array_add(auth_data, consumer_key);
+            g_ptr_array_add(auth_data, consumer_secret);
             g_ptr_array_add(auth_data, access_token);
             g_ptr_array_add(auth_data, token_secret);
-        } else if (auth_type == TYPE_UNDEFINED) {
+        } else if (strcmp(info->auth_method, "password") == 0) {
+            auth_method = info->auth_method;
+
+            /* Look up the user name and the secret */
             char *user_name = NULL;
             char *secret = NULL;
             g_variant_lookup(info->session_data, "UserName", "&s", &user_name);
             g_variant_lookup(info->session_data, "Secret", "&s", &secret);
-            if (user_name != NULL && secret != NULL && strcmp(user_name, "") != 0 && strcmp(secret, "") != 0) {
-                auth_type = TYPE_PASSWORD;
-                g_ptr_array_add(auth_data, auth_type);
-                g_ptr_array_add(auth_data, user_name);
-                g_ptr_array_add(auth_data, secret);
 
-                /* TODO: Handle special data for imap accounts */
-            }
+            /* Build the result array */
+            g_ptr_array_add(auth_data, user_name);
+            g_ptr_array_add(auth_data, secret);
+
+            /* TODO: Handle special data for imap accounts */
         }
+    } else if (error != NULL) {
+        trace("Error occured during authentication: %s\n", error->message);
+    } else if (info->auth_params == NULL) {
+        trace("Error: auth params NULL");
+    } else if (info->session_data == NULL) {
+        trace("Error: session data NULL");
     }
 
     info->watcher->callback(info->watcher,
@@ -155,6 +160,7 @@ static void account_info_notify(AccountInfo *info, GError *error) {
                             service_name,
                             error,
                             info->enabled,
+                            (const char *) auth_method,
                             (const char **)auth_data->pdata,
                             auth_data->len,
                             info->watcher->user_data);
@@ -184,9 +190,10 @@ static void account_info_login(AccountInfo *info) {
     AgAuthData *auth_data = ag_account_service_get_auth_data(info->account_service);
     GError *error = NULL;
     trace("Starting authentication session for account %u\n", info->account_id);
+    strcpy(info->auth_method, ag_auth_data_get_method(auth_data));
     info->session = signon_auth_session_new(
         ag_auth_data_get_credentials_id(auth_data),
-        ag_auth_data_get_method(auth_data), &error);
+        info->auth_method, &error);
     if (error != NULL) {
         trace("Could not set up auth session: %s\n", error->message);
         account_info_notify(info, error);
