@@ -1,0 +1,4 @@
+Pattern: ${home}/.local/share/account-polld/pollers/${id}.json
+User-Level: yes
+Hook-Name: account-poller
+Exec: /bin/true

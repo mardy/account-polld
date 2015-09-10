@@ -21,6 +21,11 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"path/filepath"
+	"os"
+	"os/exec"
+	"io/ioutil"
+	"errors"
 
 	"log"
 
@@ -33,6 +38,7 @@ import (
 	"launchpad.net/account-polld/pollbus"
 	"launchpad.net/account-polld/qtcontact"
 	"launchpad.net/go-dbus/v1"
+	"launchpad.net/go-xdg/v0"
 )
 
 type PostWatch struct {
@@ -58,6 +64,9 @@ const (
 
 var mainLoopOnce sync.Once
 
+var pollersBasePath = filepath.Join(xdg.Data.Home(), "account-polld", "pollers")
+
+
 func init() {
 	startMainLoop()
 }
@@ -77,6 +86,8 @@ func main() {
 	gettext.Textdomain("account-polld")
 	gettext.BindTextdomain("account-polld", "/usr/share/locale")
 
+	log.Print("Starting up ...")
+
 	bus, err := dbus.Connect(dbus.SessionBus)
 	if err != nil {
 		log.Fatal("Cannot connect to bus", err)
@@ -94,8 +105,52 @@ func main() {
 	<-done
 }
 
+type pollerInfo struct {
+	AppId plugins.ApplicationId `json:"app_id"`
+	Exec  string `json:"exec"`
+}
+
+func appIdFromFileName(fileName string) plugins.ApplicationId {
+	parts := strings.Split(fileName, "_")
+	return plugins.ApplicationId(parts[0])
+}
+
+func listPollers() []pollerInfo {
+	var pollers []pollerInfo
+
+	filepath.Walk(pollersBasePath, func(path string, f os.FileInfo, err error) error {
+		if f.IsDir() {
+			return nil
+		}
+
+		data, err := ioutil.ReadFile(path)
+
+		var poller pollerInfo
+		if err := json.Unmarshal(data, &poller); err != nil {
+			log.Println("Unable to load poller info file:", err)
+			return nil
+		}
+
+		abs, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			log.Println("Unalbe to determine application", poller.AppId, "base path:", err)
+			return nil
+		}
+
+		appBasePath, _ := filepath.Split(abs)
+		poller.Exec = filepath.Join(appBasePath, poller.Exec)
+
+		pollers = append(pollers, poller)
+
+		return nil
+	})
+
+	return pollers
+}
+
 func monitorAccounts(postWatch chan *PostWatch, pollBus *pollbus.PollBus) {
 	// Note: the accounts monitored are all linked to webapps right now
+	log.Print("Monitoring accounts ...")
 	watcher := accounts.NewWatcher(SERVICETYPE_WEBAPPS)
 	mgr := make(map[uint]*AccountManager)
 
@@ -136,6 +191,7 @@ L:
 				mgr[data.AccountId].Poll(true)
 			}
 		case <-pollBus.PollChan:
+			log.Print("Starting to poll available accounts ...")
 			var wg sync.WaitGroup
 			for _, v := range mgr {
 				if v.authData.Error != plugins.ErrTokenExpired { // Do not poll if the new token
@@ -158,6 +214,34 @@ L:
 					log.Println("Skipping account with id", v.authData.AccountId, "as it is refreshing its token")
 				}
 			}
+
+			for _, p := range listPollers() {
+				// FIXME: This needs to be extended with different things:
+				// - need to wrap apparmor and a timeout around the poller execution
+				log.Println("Running poller for application", p.AppId)
+				wg.Add(1)
+				go func(cmd string) {
+					defer wg.Done()
+
+					out, err := exec.Command(cmd).CombinedOutput()
+					if err != nil {
+						log.Printf("%s failed with %v; output follows\n%s", cmd, err, out)
+					}
+
+					var messages []*plugins.PushMessage
+					if err := json.Unmarshal(out, &messages); err != nil {
+						log.Println("Failed to unmarshall poller result: ", err)
+						return
+					}
+
+					batches := []*plugins.PushMessageBatch{}
+					batch := &plugins.PushMessageBatch{ Messages: messages }
+					batches = append(batches, batch)
+
+					postWatch <- &PostWatch{batches: batches, appId: p.AppId}
+				}(p.Exec)
+			}
+
 			wg.Wait()
 			pollBus.SignalDone()
 		}
@@ -166,7 +250,12 @@ L:
 
 func postOffice(bus *dbus.Connection, postWatch chan *PostWatch) {
 	for post := range postWatch {
-		obj := bus.Object(POSTAL_SERVICE, pushObjectPath(post.appId))
+		objectPath, err := pushObjectPath(post.appId)
+		if err != nil {
+			log.Println("Application id", post.appId, "is invalid; can't process its messages")
+			continue
+		}
+		obj := bus.Object(POSTAL_SERVICE, objectPath)
 		pers, err := obj.Call(POSTAL_INTERFACE, "ListPersistent", post.appId)
 		if err != nil {
 			log.Println("Could not list previous messages:", err)
@@ -237,10 +326,10 @@ func postOffice(bus *dbus.Connection, postWatch chan *PostWatch) {
 //
 // e.g.; if the APP_ID is com.ubuntu.music", the returned object path
 // would be "/com/ubuntu/PushNotifications/com_2eubuntu_2eubuntu_2emusic
-func pushObjectPath(id plugins.ApplicationId) dbus.ObjectPath {
+func pushObjectPath(id plugins.ApplicationId) (dbus.ObjectPath, error) {
 	idParts := strings.Split(string(id), "_")
 	if len(idParts) < 2 {
-		panic(fmt.Sprintf("APP_ID '%s' is not valid", id))
+		return "", errors.New(fmt.Sprintf("APP_ID '%s' is not valid", id))
 	}
 
 	pkg := POSTAL_OBJECT_PATH_PART
@@ -252,5 +341,5 @@ func pushObjectPath(id plugins.ApplicationId) dbus.ObjectPath {
 			pkg += string(c)
 		}
 	}
-	return dbus.ObjectPath(pkg)
+	return dbus.ObjectPath(pkg), nil
 }

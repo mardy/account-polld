@@ -1,1 +1,2 @@
 debian/account-polld.conf /usr/share/upstart/sessions/
+click-hooks/account-poller.hook /usr/share/click/hooks/
