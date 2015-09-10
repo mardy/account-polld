@@ -68,7 +68,7 @@ var pollersBasePath = filepath.Join(xdg.Data.Home(), "account-polld", "pollers")
 
 
 func init() {
-	startMainLoop()
+	// startMainLoop()
 }
 
 func startMainLoop() {
