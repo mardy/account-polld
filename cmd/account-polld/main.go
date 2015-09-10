@@ -26,7 +26,7 @@ import (
 	"os/exec"
 	"io/ioutil"
 	"errors"
-
+	"time"
 	"log"
 
 	"launchpad.net/account-polld/accounts"
@@ -148,6 +148,15 @@ func listPollers() []pollerInfo {
 	return pollers
 }
 
+func handleOverflow(pushMsg []*plugins.PushMessage) *plugins.PushMessage {
+	summary := gettext.Gettext("More unread emails available")
+	approxUnreadMessages := len(pushMsg)
+	body := fmt.Sprintf(gettext.Gettext("You have about %d more unread messages"), approxUnreadMessages)
+	action := fmt.Sprintf("", "personal")
+	epoch := time.Now().Unix()
+	return plugins.NewStandardPushMessage(summary, body, action, "", epoch)
+}
+
 func monitorAccounts(postWatch chan *PostWatch, pollBus *pollbus.PollBus) {
 	// Note: the accounts monitored are all linked to webapps right now
 	log.Print("Monitoring accounts ...")
@@ -235,7 +244,7 @@ L:
 					}
 
 					batches := []*plugins.PushMessageBatch{}
-					batch := &plugins.PushMessageBatch{ Messages: messages }
+					batch := &plugins.PushMessageBatch{ Messages: messages, Tag: "test", OverflowHandler: handleOverflow }
 					batches = append(batches, batch)
 
 					postWatch <- &PostWatch{batches: batches, appId: p.AppId}
