@@ -230,7 +230,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 						uid:     goimap.AsNumber(msgInfo.Attrs["UID"]),
 						date:    date,
 						from:    from,
-						subject: msg.Header.Get("Subject"),
+						subject: msg.Header.Get("Subject"), // TODO: MIME subjects??? (G+ mails)
 						message: message,
 					})
 				} else if err != nil {
