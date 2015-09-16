@@ -38,6 +38,8 @@ import (
 
 const (
 	APP_ID = "imap-accounts.nikwen_imap-accounts"
+	imapMessageDispatchUri = "imap://%d/uid/%d"
+	imapOverflowDispatchUri = "imap://%d"
 	// this means 2 individual messages + 1 bundled notification.
 	individualNotificationsLimit = 2
 	pluginName                   = "imap"
@@ -178,7 +180,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	c.Data = nil
 
 	// Get all uids of unseen mails
-	cmd, err := goimap.Wait(c.UIDSearch("1:* UNSEEN"))
+	cmd, err := goimap.Wait(c.UIDSearch("1:* UNSEEN")) // TODO: Is there a way to filter out messages which are too old that early?
 	if err != nil {
 		log.Print("imap plugin ", p.accountId, ": failed to get unseen messages: ", err)
 		return nil, err
@@ -285,11 +287,11 @@ func (p *ImapPlugin) createNotifications(messages []*Message) []*plugins.PushMes
 		if timestamp.Sub(msg.date) < timeDelta {
 			summary := sender
 			body := fmt.Sprintf("%s\n%s", msg.subject, msg.message[:int(math.Min(math.Max(float64(len(msg.message)-1), 0), 200))]) // We do not need more than 200 characters (math.Max() to make sure we get no slice bounds out of range error due to the length being 0)
-			action := "imap://asdf"                                                                                   // TODO: Something like the Gmail implementation: fmt.Sprintf(imapDispatchUrl, "personal", msg.ThreadId)
+			action := fmt.Sprintf(imapMessageDispatchUri, p.accountId, msg.uid)
 			epoch := msg.date.Unix()
 			pushMsg = append(pushMsg, plugins.NewStandardPushMessage(summary, body, action, avatarPath, epoch))
 		} else {
-			log.Print("imap plugin ", p.accountId, ": skipping message id ", msg.uid, " with date ", msg.date, " older than ", timeDelta)
+			log.Print("imap plugin ", p.accountId, ": skipping message uid ", msg.uid, " with date ", msg.date, " older than ", timeDelta)
 		}
 	}
 
@@ -302,7 +304,7 @@ func (p *ImapPlugin) handleOverflow(pushMsg []*plugins.PushMessage) *plugins.Pus
 	approxUnreadMessages := len(pushMsg)
 	// TRANSLATORS: the first %d refers to approximate additional email message count
 	body := fmt.Sprintf(gettext.Gettext("You have about %d more unread messages"), approxUnreadMessages)
-	action := "imap://asdf" // TODO: Something generic like in the Gmail plugin: fmt.Sprintf(imapDispatchUrl, "personal")
+	action := fmt.Sprintf(imapOverflowDispatchUri, p.accountId)
 	epoch := time.Now().Unix()
 
 	return plugins.NewStandardPushMessage(summary, body, action, "", epoch)
