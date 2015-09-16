@@ -187,8 +187,9 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	}
 
 	// Filter for those unread messages for which we haven't requested information from the server yet
+	// While doing that, only fetch the bodies of the 3 most recent ones, but still report the ids of the other ones as well
 	unseenUids := cmd.Data[0].SearchResults()
-	newUids, uidsToReport := p.uidFilter(unseenUids) // TODO: Only fetch the bodies of the 3 most recent ones, but still report the ids of the other ones as well!!!
+	newUids, uidsToReport := p.uidFilter(unseenUids)
 
 	messages := []*Message{}
 
@@ -310,7 +311,7 @@ func (p *ImapPlugin) handleOverflow(pushMsg []*plugins.PushMessage) *plugins.Pus
 	return plugins.NewStandardPushMessage(summary, body, action, "", epoch)
 }
 
-// uidFilter filters a list of memssage uids for those which have not been reported yet.
+// uidFilter filters a list of message uids for those which have not been reported yet.
 // It also returns a list of messages which need to be reported and sorts its output.
 func (p *ImapPlugin) uidFilter(uids []uint32) (newUids []uint32, uidsToReport reportedIdMap) {
 	sort.Sort(Uint32Slice(uids))
