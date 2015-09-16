@@ -23,7 +23,6 @@ import (
 	"sync"
 	"path/filepath"
 	"os"
-	"os/exec"
 	"io/ioutil"
 	"errors"
 	"time"
@@ -65,7 +64,8 @@ const (
 var mainLoopOnce sync.Once
 
 var pollersBasePath = filepath.Join(xdg.Data.Home(), "account-polld", "pollers")
-
+var helperPool HelperPool
+var pollersOut chan *HelperResult
 
 func init() {
 	// startMainLoop()
@@ -100,6 +100,9 @@ func main() {
 	if err := pollBus.Init(); err != nil {
 		log.Fatal("Issue while setting up the poll bus:", err)
 	}
+
+	helperPool = NewHelperPool()
+	pollersOut = helperPool.Start()
 
 	done := make(chan bool)
 	<-done
@@ -224,35 +227,53 @@ L:
 				}
 			}
 
-			for _, p := range listPollers() {
-				// FIXME: This needs to be extended with different things:
-				// - need to wrap apparmor and a timeout around the poller execution
-				log.Println("Running poller for application", p.AppId)
+			pollers := listPollers()
+			expectedResults := len(pollers)
+
+			go func() {
 				wg.Add(1)
-				go func(cmd string) {
-					defer wg.Done()
+				defer wg.Done()
 
-					out, err := exec.Command(cmd).CombinedOutput()
-					if err != nil {
-						log.Printf("%s failed with %v; output follows\n%s", cmd, err, out)
-					}
+				log.Println("Waiting for poller results");
 
-					var messages []*plugins.PushMessage
-					if err := json.Unmarshal(out, &messages); err != nil {
-						log.Println("Failed to unmarshall poller result: ", err)
+				select {
+				case res, ok := <-pollersOut:
+					if !ok {
+						log.Println("Poller result channel got closed")
 						return
 					}
+					log.Println("Got result from poll helper for app", res.AppId)
 
-					batches := []*plugins.PushMessageBatch{}
-					batch := &plugins.PushMessageBatch{ Messages: messages, Tag: "test", OverflowHandler: handleOverflow }
-					batches = append(batches, batch)
+					if res.Success {
+						batches := []*plugins.PushMessageBatch{}
+						batch := &plugins.PushMessageBatch{ Messages: res.Messages, Tag: "test", OverflowHandler: handleOverflow }
+						batches = append(batches, batch)
 
-					postWatch <- &PostWatch{batches: batches, appId: p.AppId}
-				}(p.Exec)
+						postWatch <- &PostWatch{batches: batches, appId: plugins.ApplicationId(res.AppId)}
+					} else {
+						log.Println("Failed to get a result for poller from app", res.AppId)
+					}
+
+					// Make sure that we quit here when we have all results we need
+					// and don't wait for ever
+					expectedResults--
+					if expectedResults == 0 {
+						break
+					}
+				}
+
+				log.Println("Got all poller results")
+			}()
+
+			for _, p := range listPollers() {
+				log.Println("Running poller for application", p.AppId)
+				helperPool.Run(string(p.AppId), p.Exec)
 			}
 
 			wg.Wait()
 			pollBus.SignalDone()
+
+			log.Println("Processed one poll iteration successfully")
 		}
 	}
 }
