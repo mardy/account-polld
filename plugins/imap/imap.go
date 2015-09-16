@@ -221,11 +221,11 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 
 					// Parse the message to retrieve its body as plain text (especially needed for multipart messages)
 					var message string
-					mimeBody, err := goenmime.ParseMIMEBody(msg) // TODO: Fix trailing line breaks in multipart messages // TODO: Remove double spaces and line breaks from the message?
+					mimeBody, err := goenmime.ParseMIMEBody(msg) // TODO: Remove double spaces and line breaks from the message?
 					if err != nil {
 						log.Print("imap plugin ", p.accountId, ": failed to parse mime body: ", err)
 					} else {
-						message = mimeBody.Text
+						message = strings.TrimSpace(mimeBody.Text)
 					}
 
 					messages = append(messages, &Message{
