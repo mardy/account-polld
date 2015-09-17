@@ -37,6 +37,8 @@ import (
 	"launchpad.net/account-polld/qtcontact"
 )
 
+// TODO: Some dependencies via packages instead of importing the source code?
+
 const (
 	APP_ID = "imap-accounts.nikwen_imap-accounts"
 	imapMessageDispatchUri = "imap://%d/uid/%d"
@@ -121,6 +123,7 @@ func (p *ImapPlugin) ApplicationId() plugins.ApplicationId {
 	return plugins.ApplicationId(APP_ID) // TODO: Make this dynamic! Pass it when the plugin is instantiated
 }
 
+// TODO: Poll seems to hang when restarting the push client when we have unread emails
 func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBatch, error) {
 	// Get the user's login data
 	user := authData.ClientId
@@ -188,16 +191,15 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	}
 
 	// Filter for those unread messages for which we haven't requested information from the server yet
-	// While doing that, only fetch the bodies of the 3 most recent ones, but still report the ids of the other ones as well
 	unseenUids := cmd.Data[0].SearchResults()
 	newUids, uidsToReport := p.uidFilter(unseenUids)
 
 	messages := []*Message{}
 
 	if len(newUids) > 0 {
-		// Fetch unread messages by their uids
+		// TODO: Fetch the bodies of the 3 most recent unread messages by their uids (we do not display more than 3 anyway) and create dummy messages for the other ones?
 		set, _ := goimap.NewSeqSet("")
-		set.AddNum(newUids...)
+		set.AddNum(newUids...) // set.AddNum(newUids[Math.max(len(newUids)-(individualNotificationsLimit+1), 0):]...)
 		cmd, err = c.UIDFetch(set, "RFC822", "UID", "BODY[]")
 		if err != nil {
 			log.Print("imap plugin ", p.accountId, ": failed fetch messages by uids: ", err)
@@ -286,7 +288,7 @@ func (p *ImapPlugin) createNotifications(messages []*Message) []*plugins.PushMes
 			avatarPath = qtcontact.GetAvatar(address.Address)
 		}
 
-		if timestamp.Sub(msg.date) < timeDelta { // TODO: Remove this when the SINCE implementation is done as it causes problem with the limitation of downloading only 3 messages when these are too old
+		if timestamp.Sub(msg.date) < timeDelta {
 			// Remove unnecessary spaces from the beginning and the end of the message and replace all sequences of whitespaces by a single space character
 			message := strings.TrimSpace(msg.message)
 			whitespaceRegexp, _ := regexp.Compile("\\s+")
