@@ -293,7 +293,7 @@ func (p *ImapPlugin) createNotifications(messages []*Message) []*plugins.PushMes
 			message = whitespaceRegexp.ReplaceAllString(message, " ")
 
 			summary := sender
-			body := fmt.Sprintf("%s\n%s", strings.TrimSpace(msg.subject), message[:int(math.Min(math.Max(float64(len(msg.message)-1), 0), 200))]) // We do not need more than 200 characters (math.Max() to make sure we get no slice bounds out of range error due to the length being 0)
+			body := fmt.Sprintf("%s\n%s", strings.TrimSpace(msg.subject), message[:int(math.Min(math.Max(float64(len(message)-1), 0), 200))]) // We do not need more than 200 characters (math.Max() to make sure we get no slice bounds out of range error due to the length being 0)
 			action := fmt.Sprintf(imapMessageDispatchUri, p.accountId, msg.uid)
 			epoch := msg.date.Unix()
 			pushMsg = append(pushMsg, plugins.NewStandardPushMessage(summary, body, action, avatarPath, epoch))
