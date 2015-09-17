@@ -286,7 +286,7 @@ func (p *ImapPlugin) createNotifications(messages []*Message) []*plugins.PushMes
 			avatarPath = qtcontact.GetAvatar(address.Address)
 		}
 
-		if timestamp.Sub(msg.date) < timeDelta {
+		if timestamp.Sub(msg.date) < timeDelta { // TODO: Remove this when the SINCE implementation is done as it causes problem with the limitation of downloading only 3 messages when these are too old
 			// Remove unnecessary spaces from the beginning and the end of the message and replace all sequences of whitespaces by a single space character
 			message := strings.TrimSpace(msg.message)
 			whitespaceRegexp, _ := regexp.Compile("\s+")
