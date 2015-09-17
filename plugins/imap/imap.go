@@ -118,7 +118,7 @@ func New(accountId uint) *ImapPlugin {
 }
 
 func (p *ImapPlugin) ApplicationId() plugins.ApplicationId {
-	return plugins.ApplicationId(APP_ID)
+	return plugins.ApplicationId(APP_ID) // TODO: Make this dynamic! Pass it when the plugin is instantiated
 }
 
 func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBatch, error) {
