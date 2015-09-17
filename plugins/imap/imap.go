@@ -22,6 +22,7 @@ import (
 	"log"
 	"math"
 	"net/mail"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -180,7 +181,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	c.Data = nil
 
 	// Get all uids of unseen mails
-	cmd, err := goimap.Wait(c.UIDSearch("1:* UNSEEN")) // TODO: Is there a way to filter out messages which are too old that early?
+	cmd, err := goimap.Wait(c.UIDSearch("1:* UNSEEN")) // TODO: Use the SINCE command to filter out emails which are older than a day (and add a notice to the timeDelta declaration)
 	if err != nil {
 		log.Print("imap plugin ", p.accountId, ": failed to get unseen messages: ", err)
 		return nil, err
@@ -222,11 +223,11 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 
 					// Parse the message to retrieve its body as plain text (especially needed for multipart messages)
 					var message string
-					mimeBody, err := goenmime.ParseMIMEBody(msg) // TODO: Remove double spaces and line breaks from the message?
+					mimeBody, err := goenmime.ParseMIMEBody(msg)
 					if err != nil {
 						log.Print("imap plugin ", p.accountId, ": failed to parse mime body: ", err)
 					} else {
-						message = strings.TrimSpace(mimeBody.Text)
+						message = mimeBody.Text
 					}
 
 					messages = append(messages, &Message{
@@ -286,8 +287,13 @@ func (p *ImapPlugin) createNotifications(messages []*Message) []*plugins.PushMes
 		}
 
 		if timestamp.Sub(msg.date) < timeDelta {
+			// Remove unnecessary spaces from the beginning and the end of the message and replace all sequences of whitespaces by a single space character
+			message := strings.TrimSpace(msg.message)
+			whitespaceRegexp, _ := regexp.Compile("\s+")
+			message := whitespaceRegexp.ReplaceAllString(message, " ")
+
 			summary := sender
-			body := fmt.Sprintf("%s\n%s", msg.subject, msg.message[:int(math.Min(math.Max(float64(len(msg.message)-1), 0), 200))]) // We do not need more than 200 characters (math.Max() to make sure we get no slice bounds out of range error due to the length being 0)
+			body := fmt.Sprintf("%s\n%s", msg.subject, message[:int(math.Min(math.Max(float64(len(msg.message)-1), 0), 200))]) // We do not need more than 200 characters (math.Max() to make sure we get no slice bounds out of range error due to the length being 0)
 			action := fmt.Sprintf(imapMessageDispatchUri, p.accountId, msg.uid)
 			epoch := msg.date.Unix()
 			pushMsg = append(pushMsg, plugins.NewStandardPushMessage(summary, body, action, avatarPath, epoch))
