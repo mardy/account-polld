@@ -289,8 +289,8 @@ func (p *ImapPlugin) createNotifications(messages []*Message) []*plugins.PushMes
 		if timestamp.Sub(msg.date) < timeDelta { // TODO: Remove this when the SINCE implementation is done as it causes problem with the limitation of downloading only 3 messages when these are too old
 			// Remove unnecessary spaces from the beginning and the end of the message and replace all sequences of whitespaces by a single space character
 			message := strings.TrimSpace(msg.message)
-			whitespaceRegexp, _ := regexp.Compile("\s+")
-			message := whitespaceRegexp.ReplaceAllString(message, " ")
+			whitespaceRegexp, _ := regexp.Compile("\\s+")
+			message = whitespaceRegexp.ReplaceAllString(message, " ")
 
 			summary := sender
 			body := fmt.Sprintf("%s\n%s", msg.subject, message[:int(math.Min(math.Max(float64(len(msg.message)-1), 0), 200))]) // We do not need more than 200 characters (math.Max() to make sure we get no slice bounds out of range error due to the length being 0)
