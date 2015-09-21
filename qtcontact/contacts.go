@@ -39,6 +39,7 @@ func callback(path *C.char) {
 }
 
 func MainLoopStart() {
+	log.Println("called")
 	go func() {
 		C.mainloopStart()
 		log.Println("mainloop start")
@@ -68,7 +69,7 @@ func GetAvatar(emailAddress string) string {
 
 	log.Println("pre-getavatar")
 
-	C.getAvatar(C.CString(emailAddress))
+	go C.getAvatar(C.CString(emailAddress))
 
 	log.Println("getavatar")
 
