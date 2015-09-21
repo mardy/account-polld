@@ -123,6 +123,7 @@ func (p *ImapPlugin) ApplicationId() plugins.ApplicationId {
 }
 
 // TODO: Poll seems to hang when restarting the push client when we have unread emails
+// TODO: Look into uidvalidity (is this why some messages are shown again after rebooting?)
 func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBatch, error) {
 	// Get the user's login data
 	user := authData.ClientId
@@ -220,7 +221,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 			// Wait for the next response (no timeout)
 			c.Recv(-1)
 
-			log.Print("imap plugin: inprogress")
+			log.Print(fmt.Sprintf("imap plugin: inprogress, %#v, %d", cmd.Data, len(cmd.Data)))
 
 			// Process command data
 			for _, rsp := range cmd.Data {
