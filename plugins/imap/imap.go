@@ -37,8 +37,6 @@ import (
 	"launchpad.net/account-polld/qtcontact"
 )
 
-// TODO: Some dependencies via packages instead of importing the source code?
-
 const (
 	APP_ID = "imap-accounts.nikwen_imap-accounts"
 	imapMessageDispatchUri = "imap://%d/uid/%d"
