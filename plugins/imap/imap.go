@@ -300,9 +300,15 @@ func (p *ImapPlugin) createNotifications(messages []*Message) []*plugins.PushMes
 	timestamp := time.Now()
 	pushMsg := make([]*plugins.PushMessage, 0)
 
+	log.Print("imap plugin: make;", len(messages))
+
 	for _, msg := range messages {
+		log.Print("imap plugin: range")
+
 		// Parse the message's raw email address
 		address, err := mail.ParseAddress(msg.from)
+
+		log.Print("imap plugin: parse")
 
 		// Get the sender's name
 		var sender string
@@ -315,27 +321,39 @@ func (p *ImapPlugin) createNotifications(messages []*Message) []*plugins.PushMes
 			sender = address.Address
 		}
 
+		log.Print("imap plugin: create-if1")
+
 		// Get the sender's avatar if the email address is in the user's contacts list
 		var avatarPath string
 		if len(address.Address) > 0 {
 			avatarPath = qtcontact.GetAvatar(address.Address)
 		}
 
+		log.Print("imap plugin: create-if2")
+
 		if timestamp.Sub(msg.date) < timeDelta {
+			log.Print("imap plugin: create-if3")
+
 			// Remove unnecessary spaces from the beginning and the end of the message and replace all sequences of whitespaces by a single space character
 			message := strings.TrimSpace(msg.message)
 			whitespaceRegexp, _ := regexp.Compile("\\s+")
 			message = whitespaceRegexp.ReplaceAllString(message, " ")
 
+			log.Print("imap plugin: regexp")
+
 			summary := sender
 			body := fmt.Sprintf("%s\n%s", strings.TrimSpace(msg.subject), message[:int(math.Min(float64(len(message)), 200))]) // We do not need more than 200 characters
 			action := fmt.Sprintf(imapMessageDispatchUri, p.accountId, msg.uid)
 			epoch := msg.date.Unix()
+			log.Print("imap plugin: pre-append")
 			pushMsg = append(pushMsg, plugins.NewStandardPushMessage(summary, body, action, avatarPath, epoch))
+			log.Print("imap plugin: append")
 		} else {
 			log.Print("imap plugin ", p.accountId, ": skipping message uid ", msg.uid, " with date ", msg.date, " older than ", timeDelta)
 		}
 	}
+
+	log.Print("imap plugin: create-post-for")
 
 	return pushMsg
 }
