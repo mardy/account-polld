@@ -261,8 +261,10 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 					log.Print("imap plugin ", p.accountId, ": failed to parse message body: ", err)
 				}
 			}
+			log.Print("imap plugin: after for")
 			cmd.Data = nil
 			c.Data = nil
+			log.Print("imap plugin: niled")
 		}
 
 		// Report uids after polling succeeded
