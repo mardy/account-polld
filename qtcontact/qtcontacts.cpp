@@ -46,12 +46,17 @@ int mainloopStart() {
     return mApp.exec();
 }
 
-void getAvatar(char *email) {
+char* getAvatar(char *email) {
     QScopedPointer<Avatar> avatar(new Avatar());
-    avatar->retrieveThumbnail(QString(email));
+    QString thumbnailPath = avatar->retrieveThumbnail(QString(email));
+
+    QByteArray byteArray = thumbnailPath.toUtf8();
+    char* cString = byteArray.data();
+
+    return cString;
 }
 
-void Avatar::retrieveThumbnail(const QString& email) {
+QString Avatar::retrieveThumbnail(const QString& email) {
     QString avatar;
 
     QContactManager manager ("galera");
@@ -61,8 +66,5 @@ void Avatar::retrieveThumbnail(const QString& email) {
         avatar = contacts[0].detail<QContactAvatar>().imageUrl().path();
     }
 
-    QByteArray byteArray = avatar.toUtf8();
-    char* cString = byteArray.data();
-
-    callback(cString);
+    return avatar;
 }

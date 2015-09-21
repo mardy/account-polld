@@ -26,7 +26,7 @@ class Avatar : QObject {
         explicit Avatar(QObject* parent=0)
             : QObject(parent) {
         }
-        void retrieveThumbnail(const QString& email);
+        QString retrieveThumbnail(const QString& email);
 };
 
 #endif

@@ -21,7 +21,7 @@
 extern "C" {
 #endif
 
-void getAvatar(char *);
+char* getAvatar(char *);
 int mainloopStart();
 
 #ifdef __cplusplus
