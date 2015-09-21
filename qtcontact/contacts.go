@@ -42,7 +42,7 @@ func MainLoopStart() {
 	go func() {
 		C.mainloopStart()
 		log.Println("mainloop start")
-	}
+	}()
 }
 
 // GetAvatar retrieves an avatar path for the specified email
