@@ -220,7 +220,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		for cmd.InProgress() {
 
 			log.Print("imap plugin: before recv")
-			
+
 			// Wait for the next response (no timeout)
 			err = c.Recv(-1)
 
@@ -268,14 +268,20 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 			cmd.Data = nil
 			c.Data = nil
 			log.Print("imap plugin: niled")
+			log.Print("imap plugin: cmd.InProgress()? ", cmd.InProgress())
 		}
+		log.Print("imap plugin: before persist")
 
 		// Report uids after polling succeeded
 		p.reportedIds = uidsToReport
+		log.Print("imap plugin: uidstoreport")
 		p.reportedIds.persist(p.accountId)
+		log.Print("imap plugin: persisted")
 	} else {
 		log.Print("imap plugin: else")
 	}
+
+	log.Print("imap plugin: before create")
 
 	notif := p.createNotifications(messages)
 
