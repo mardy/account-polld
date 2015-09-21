@@ -39,7 +39,10 @@ func callback(path *C.char) {
 }
 
 func MainLoopStart() {
-	go C.mainloopStart()
+	go func() {
+		C.mainloopStart()
+		log.Println("mainloop start")
+	}
 }
 
 // GetAvatar retrieves an avatar path for the specified email

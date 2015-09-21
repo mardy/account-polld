@@ -66,9 +66,7 @@ func init() {
 }
 
 func startMainLoop() {
-	mainLoopOnce.Do(func() {
-		go qtcontact.MainLoopStart()
-	})
+	mainLoopOnce.Do(qtcontact.MainLoopStart)
 }
 
 func main() {
