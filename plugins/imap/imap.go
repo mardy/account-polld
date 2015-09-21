@@ -174,6 +174,8 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		return nil, err
 	}
 
+	log.Print("imap plugin: login")
+
 	// Select the inbox
 	_, err = c.Select("INBOX", true)
 	if err != nil {
@@ -182,6 +184,8 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	}
 	c.Data = nil
 
+	log.Print("imap plugin: inbox")
+
 	// Get all uids of unseen mails
 	cmd, err := goimap.Wait(c.UIDSearch("1:* UNSEEN")) // TODO: Use the SINCE command to filter out emails which are older than a day (and add a notice to the timeDelta declaration)
 	if err != nil {
@@ -189,11 +193,15 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		return nil, err
 	}
 
+	log.Print("imap plugin: uidsearch")
+
 	// Filter for those unread messages for which we haven't requested information from the server yet
 	unseenUids := cmd.Data[0].SearchResults()
 	newUids, uidsToReport := p.uidFilter(unseenUids)
 
 	messages := []*Message{}
+
+	log.Print("imap plugin: before if")
 
 	if len(newUids) > 0 {
 		// TODO: Fetch the bodies of the 3 most recent unread messages by their uids (we do not display more than 3 anyway) and create dummy messages for the other ones?
@@ -205,16 +213,24 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 			return nil, err
 		}
 
+		log.Print("imap plugin: uidfetch")
+
 		// Process responses while the command is running
 		for cmd.InProgress() {
 			// Wait for the next response (no timeout)
 			c.Recv(-1)
 
+			log.Print("imap plugin: inprogress")
+
 			// Process command data
 			for _, rsp := range cmd.Data {
+				log.Print("imap plugin: for")
+
 				msgInfo := rsp.MessageInfo()
 				body := goimap.AsBytes(msgInfo.Attrs["BODY[]"])
 				if msg, err := mail.ReadMessage(bytes.NewReader(body)); msg != nil {
+					log.Print("imap plugin: if2")
+
 					from := goimap.AsString(msg.Header.Get("From"))
 
 					date, err := msg.Header.Date()
@@ -238,6 +254,8 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 						subject: mimeBody.GetHeader("Subject"),
 						message: message,
 					})
+
+					log.Print("imap plugin: append")
 				} else if err != nil {
 					log.Print("imap plugin ", p.accountId, ": failed to parse message body: ", err)
 				}
@@ -249,9 +267,13 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		// Report uids after polling succeeded
 		p.reportedIds = uidsToReport
 		p.reportedIds.persist(p.accountId)
+	} else {
+		log.Print("imap plugin: else")
 	}
 
 	notif := p.createNotifications(messages)
+
+	log.Print("imap plugin: createNotifications")
 
 	return []*plugins.PushMessageBatch{
 		&plugins.PushMessageBatch{
