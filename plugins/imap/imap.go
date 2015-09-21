@@ -122,8 +122,6 @@ func (p *ImapPlugin) ApplicationId() plugins.ApplicationId {
 	return plugins.ApplicationId(p.appId)
 }
 
-// TODO: Poll seems to hang when restarting the push client when we have unread emails
-// TODO: Look into uidvalidity (is this why some messages are shown again after rebooting?)
 func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBatch, error) {
 	// Get the user's login data
 	user := authData.ClientId
@@ -175,8 +173,6 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		return nil, err
 	}
 
-	log.Print("imap plugin: login")
-
 	// Select the inbox
 	_, err = c.Select("INBOX", true)
 	if err != nil {
@@ -185,8 +181,6 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	}
 	c.Data = nil
 
-	log.Print("imap plugin: inbox")
-
 	// Get all uids of unseen mails
 	cmd, err := goimap.Wait(c.UIDSearch("1:* UNSEEN")) // TODO: Use the SINCE command to filter out emails which are older than a day (and add a notice to the timeDelta declaration)
 	if err != nil {
@@ -194,15 +188,11 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		return nil, err
 	}
 
-	log.Print("imap plugin: uidsearch")
-
 	// Filter for those unread messages for which we haven't requested information from the server yet
 	unseenUids := cmd.Data[0].SearchResults()
 	newUids, uidsToReport := p.uidFilter(unseenUids)
 
 	messages := []*Message{}
-
-	log.Print("imap plugin: before if")
 
 	if len(newUids) > 0 {
 		// TODO: Fetch the bodies of the 3 most recent unread messages by their uids (we do not display more than 3 anyway) and create dummy messages for the other ones?
@@ -214,27 +204,16 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 			return nil, err
 		}
 
-		log.Print("imap plugin: uidfetch")
-
 		// Process responses while the command is running
 		for cmd.InProgress() {
-
-			log.Print("imap plugin: before recv")
-
 			// Wait for the next response (no timeout)
-			err = c.Recv(-1)
-
-			log.Print(fmt.Sprintf("imap plugin: inprogress, %#v, %d", cmd.Data, len(cmd.Data)), err)
+			c.Recv(-1)
 
 			// Process command data
 			for _, rsp := range cmd.Data {
-				log.Print("imap plugin: for")
-
 				msgInfo := rsp.MessageInfo()
 				body := goimap.AsBytes(msgInfo.Attrs["BODY[]"])
 				if msg, err := mail.ReadMessage(bytes.NewReader(body)); msg != nil {
-					log.Print("imap plugin: if2")
-
 					from := goimap.AsString(msg.Header.Get("From"))
 
 					date, err := msg.Header.Date()
@@ -258,34 +237,20 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 						subject: mimeBody.GetHeader("Subject"),
 						message: message,
 					})
-
-					log.Print("imap plugin: append")
 				} else if err != nil {
 					log.Print("imap plugin ", p.accountId, ": failed to parse message body: ", err)
 				}
 			}
-			log.Print("imap plugin: after for")
 			cmd.Data = nil
 			c.Data = nil
-			log.Print("imap plugin: niled")
-			log.Print("imap plugin: cmd.InProgress()? ", cmd.InProgress())
 		}
-		log.Print("imap plugin: before persist")
 
 		// Report uids after polling succeeded
 		p.reportedIds = uidsToReport
-		log.Print("imap plugin: uidstoreport")
 		p.reportedIds.persist(p.accountId)
-		log.Print("imap plugin: persisted")
-	} else {
-		log.Print("imap plugin: else")
 	}
 
-	log.Print("imap plugin: before create")
-
 	notif := p.createNotifications(messages)
-
-	log.Print("imap plugin: createNotifications")
 
 	return []*plugins.PushMessageBatch{
 		&plugins.PushMessageBatch{
@@ -300,15 +265,9 @@ func (p *ImapPlugin) createNotifications(messages []*Message) []*plugins.PushMes
 	timestamp := time.Now()
 	pushMsg := make([]*plugins.PushMessage, 0)
 
-	log.Print("imap plugin: make;", len(messages))
-
 	for _, msg := range messages {
-		log.Print("imap plugin: range")
-
 		// Parse the message's raw email address
 		address, err := mail.ParseAddress(msg.from)
-
-		log.Print("imap plugin: parse")
 
 		// Get the sender's name
 		var sender string
@@ -321,39 +280,27 @@ func (p *ImapPlugin) createNotifications(messages []*Message) []*plugins.PushMes
 			sender = address.Address
 		}
 
-		log.Print("imap plugin: create-if1")
-
 		// Get the sender's avatar if the email address is in the user's contacts list
 		var avatarPath string
 		if len(address.Address) > 0 {
-			avatarPath = qtcontact.GetAvatar(address.Address)
+			avatarPath = qtcontact.GetAvatar(address.Address) // TODO: Blocking when displaying a notification on startup (LP: #1498214)
 		}
 
-		log.Print("imap plugin: create-if2")
-
 		if timestamp.Sub(msg.date) < timeDelta {
-			log.Print("imap plugin: create-if3")
-
 			// Remove unnecessary spaces from the beginning and the end of the message and replace all sequences of whitespaces by a single space character
 			message := strings.TrimSpace(msg.message)
 			whitespaceRegexp, _ := regexp.Compile("\\s+")
 			message = whitespaceRegexp.ReplaceAllString(message, " ")
 
-			log.Print("imap plugin: regexp")
-
 			summary := sender
 			body := fmt.Sprintf("%s\n%s", strings.TrimSpace(msg.subject), message[:int(math.Min(float64(len(message)), 200))]) // We do not need more than 200 characters
 			action := fmt.Sprintf(imapMessageDispatchUri, p.accountId, msg.uid)
 			epoch := msg.date.Unix()
-			log.Print("imap plugin: pre-append")
 			pushMsg = append(pushMsg, plugins.NewStandardPushMessage(summary, body, action, avatarPath, epoch))
-			log.Print("imap plugin: append")
 		} else {
 			log.Print("imap plugin ", p.accountId, ": skipping message uid ", msg.uid, " with date ", msg.date, " older than ", timeDelta)
 		}
 	}
-
-	log.Print("imap plugin: create-post-for")
 
 	return pushMsg
 }

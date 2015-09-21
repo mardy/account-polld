@@ -157,7 +157,7 @@ func (p *GmailPlugin) createNotifications(messages []message) ([]*plugins.PushMe
 		if emailAddress, err := mail.ParseAddress(hdr[hdrFROM]); err == nil {
 			if emailAddress.Name != "" {
 				from = emailAddress.Name
-				avatarPath = qtcontact.GetAvatar(emailAddress.Address)
+				avatarPath = qtcontact.GetAvatar(emailAddress.Address) // TODO: Blocking when displaying a notification on startup (LP: #1498214)
 			}
 		}
 		msgStamp := hdr.getTimestamp()
