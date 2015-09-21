@@ -218,6 +218,9 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 
 		// Process responses while the command is running
 		for cmd.InProgress() {
+
+			log.Print("imap plugin: before recv")
+			
 			// Wait for the next response (no timeout)
 			err = c.Recv(-1)
 
