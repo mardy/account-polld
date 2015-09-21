@@ -49,19 +49,32 @@ func GetAvatar(emailAddress string) string {
 		return ""
 	}
 
+	log.Println("pre-lock")
+
 	m.Lock()
+
+	log.Println("lock")
+
 	defer m.Unlock()
 
 	avatarPathChan = make(chan string, 1)
+
+	log.Println("make")
+
 	defer close(avatarPathChan)
 
+	log.Println("pre-getavatar")
+
 	C.getAvatar(C.CString(emailAddress))
+
+	log.Println("getavatar")
 
 	select {
 	case <-time.After(3 * time.Second):
 		log.Println("Timeout while seeking avatar for", emailAddress)
 		return ""
 	case path := <-avatarPathChan:
+		log.Println("got path")
 		return path
 	}
 }
