@@ -38,7 +38,6 @@ import (
 )
 
 const (
-	APP_ID = "imap-accounts.nikwen_imap-accounts"
 	imapMessageDispatchUri = "imap://%d/uid/%d"
 	imapOverflowDispatchUri = "imap://%d"
 	// this means 2 individual messages + 1 bundled notification.
@@ -62,6 +61,8 @@ var timeDelta = time.Duration(time.Hour * 24)
 var trackDelta = time.Duration(time.Hour * 24 * 7)
 
 type ImapPlugin struct {
+	// the app id of the app to display notifications for
+	appId       string
 	// reportedIds holds the messages that have already been notified. This
 	// approach is taken against timestamps as it avoids needing to call
 	// get on the message.
@@ -107,18 +108,18 @@ func (p *ImapPlugin) reported(id string) bool {
 	return ok
 }
 
-func New(accountId uint) *ImapPlugin {
+func New(appId string, accountId uint) *ImapPlugin {
 	reportedIds, err := idsFromPersist(accountId)
 	if err != nil {
 		log.Print("imap plugin ", accountId, ": cannot load previous state from storage: ", err)
 	} else {
 		log.Print("imap plugin ", accountId, ": last state loaded from storage")
 	}
-	return &ImapPlugin{reportedIds: reportedIds, accountId: accountId}
+	return &ImapPlugin{appId: appId, reportedIds: reportedIds, accountId: accountId}
 }
 
 func (p *ImapPlugin) ApplicationId() plugins.ApplicationId {
-	return plugins.ApplicationId(APP_ID) // TODO: Make this dynamic! Pass it when the plugin is instantiated
+	return plugins.ApplicationId(p.appId)
 }
 
 // TODO: Poll seems to hang when restarting the push client when we have unread emails

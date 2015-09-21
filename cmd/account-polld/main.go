@@ -51,7 +51,6 @@ const (
 	SERVICENAME_GMAIL    = "com.ubuntu.developer.webapps.webapp-gmail_webapp-gmail"
 	SERVICENAME_TWITTER  = "com.ubuntu.developer.webapps.webapp-twitter_webapp-twitter"
 	SERVICENAME_FACEBOOK = "com.ubuntu.developer.webapps.webapp-facebook_webapp-facebook"
-	SERVICENAME_IMAP     = "imap-accounts.nikwen_imap-accounts"
 )
 
 const (
@@ -157,7 +156,7 @@ func handleWatcherData(watcher *accounts.Watcher, postWatch chan *PostWatch, mgr
 		var plugin plugins.Plugin = nil
 		if serviceType == SERVICETYPE_IMAP { // Allow any app to display imap notifications
 			log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
-			plugin = imap.New(data.AccountId)
+			plugin = imap.New(data.ServiceName, data.AccountId)
 		} else {
 			switch data.ServiceName {
 			case SERVICENAME_GMAIL:
