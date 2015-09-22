@@ -56,7 +56,7 @@ func GetAvatar(emailAddress string) string {
 	log.Println("pre-getavatar")
 
 	go func() {
-		avatarPathChan <- C.getAvatar(C.CString(emailAddress))
+		avatarPathChan <- C.GoString(C.getAvatar(C.CString(emailAddress)))
 	}()
 
 	log.Println("getavatar")
