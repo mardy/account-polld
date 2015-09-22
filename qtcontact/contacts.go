@@ -41,6 +41,7 @@ func MainLoopStart() {
 func GetAvatar(emailAddress string) string {
 	if emailAddress == "" {
 		return ""
+	}
 
 	avatarPathChan := make(chan string, 1)
 
