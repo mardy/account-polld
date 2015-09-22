@@ -37,7 +37,9 @@ extern "C" {
 
 QTCONTACTS_USE_NAMESPACE
 
-/* #define DEBUG */
+#include <stdio.h>
+
+#define DEBUG
 #ifdef DEBUG
 #  define trace(...) fprintf(stderr, __VA_ARGS__)
 #else
@@ -54,6 +56,7 @@ int mainloopStart() {
 }
 
 char* getAvatar(char *email) {
+    trace("getAvatar");
     QScopedPointer<Avatar> avatar(new Avatar());
     QString thumbnailPath = avatar->retrieveThumbnail(QString(email));
 
