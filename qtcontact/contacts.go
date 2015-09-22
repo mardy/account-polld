@@ -24,7 +24,6 @@ import "C"
 
 import (
 	"log"
-	"sync"
 	"time"
 )
 
