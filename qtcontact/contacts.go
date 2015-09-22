@@ -28,11 +28,7 @@ import (
 )
 
 func MainLoopStart() {
-	log.Println("called")
-	go func() {
-		log.Println("mainloop start")
-		C.mainloopStart()
-	}()
+	go C.mainloopStart()
 }
 
 // GetAvatar retrieves an avatar path for the specified email

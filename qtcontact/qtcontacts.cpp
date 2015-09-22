@@ -37,6 +37,13 @@ extern "C" {
 
 QTCONTACTS_USE_NAMESPACE
 
+/* #define DEBUG */
+#ifdef DEBUG
+#  define trace(...) fprintf(stderr, __VA_ARGS__)
+#else
+#  define trace(...)
+#endif
+
 int mainloopStart() {
     static char empty[1] = {0};
     static char *argv[] = {empty, empty, empty};
@@ -59,12 +66,18 @@ char* getAvatar(char *email) {
 QString Avatar::retrieveThumbnail(const QString& email) {
     QString avatar;
 
+    trace("manager");
     QContactManager manager ("galera");
+    trace("filter");
     QContactDetailFilter filter(QContactEmailAddress::match(email));
+    trace("contacts");
     QList<QContact> contacts = manager.contacts(filter);
+    trace("if");
     if(contacts.size() > 0) {
+        trace("in-if");
         avatar = contacts[0].detail<QContactAvatar>().imageUrl().path();
     }
+    trace("after-if");
 
     return avatar;
 }
