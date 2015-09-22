@@ -30,8 +30,8 @@ import (
 func MainLoopStart() {
 	log.Println("called")
 	go func() {
-		C.mainloopStart()
 		log.Println("mainloop start")
+		C.mainloopStart()
 	}()
 }
 
