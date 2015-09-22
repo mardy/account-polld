@@ -28,8 +28,6 @@ import (
 	"time"
 )
 
-var	m sync.Mutex
-
 func MainLoopStart() {
 	log.Println("called")
 	go func() {
@@ -43,27 +41,16 @@ func MainLoopStart() {
 func GetAvatar(emailAddress string) string {
 	if emailAddress == "" {
 		return ""
-	}
-
-	log.Println("pre-lock")
 
 	avatarPathChan := make(chan string, 1)
-
-	log.Println("make")
-
-	defer close(avatarPathChan)
-
-	log.Println("pre-getavatar")
 
 	go func() {
 		avatarPathChan <- C.GoString(C.getAvatar(C.CString(emailAddress)))
 	}()
 
-	log.Println("getavatar")
-
 	for {
 		select {
-		case <-time.After(5 * time.Second):
+		case <-time.After(10 * time.Second):
 			log.Println("Timeout while seeking avatar for", emailAddress)
 			return ""
 		case path := <-avatarPathChan:
