@@ -37,15 +37,6 @@ extern "C" {
 
 QTCONTACTS_USE_NAMESPACE
 
-#include <stdio.h>
-
-#define DEBUG
-#ifdef DEBUG
-#  define trace(...) fprintf(stderr, __VA_ARGS__)
-#else
-#  define trace(...)
-#endif
-
 int mainloopStart() {
     static char empty[1] = {0};
     static char *argv[] = {empty, empty, empty};
@@ -56,7 +47,6 @@ int mainloopStart() {
 }
 
 char* getAvatar(char *email) {
-    trace("getAvatar");
     QScopedPointer<Avatar> avatar(new Avatar());
     QString thumbnailPath = avatar->retrieveThumbnail(QString(email));
 
@@ -69,18 +59,14 @@ char* getAvatar(char *email) {
 QString Avatar::retrieveThumbnail(const QString& email) {
     QString avatar;
 
-    trace("manager");
     QContactManager manager ("galera");
-    trace("filter");
     QContactDetailFilter filter(QContactEmailAddress::match(email));
-    trace("contacts");
     QList<QContact> contacts = manager.contacts(filter);
-    trace("if");
+    // TODO: contacts() takes a long time to finish, improve this using the information from https://projects.kde.org/projects/qt5/qtpim/repository/revisions/master/entry/src/contacts/qcontactfetchhint.cpp and https://projects.kde.org/projects/qt5/qtpim/repository/revisions/master/entry/src/contacts/qcontactmanager.cpp
+    // Does it help if we store the manager we use?
     if(contacts.size() > 0) {
-        trace("in-if");
         avatar = contacts[0].detail<QContactAvatar>().imageUrl().path();
     }
-    trace("after-if");
 
     return avatar;
 }
