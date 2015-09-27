@@ -66,6 +66,8 @@ func (a *AccountManager) Delete() {
 	close(a.doneChan)
 }
 
+// Poll() always needs to be called in a goroutine as otherwise qtcontacs' GetAvatar()
+// will raise an error: "QSocketNotifier: Can only be used with threads started with QThread"
 func (a *AccountManager) Poll(bootstrap bool) {
 	if !a.authData.Enabled {
 		var ok bool

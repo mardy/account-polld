@@ -111,7 +111,7 @@ func monitorAccounts(postWatch chan *PostWatch, pollBus *pollbus.PollBus) {
 		case data := <-imapWatcher.C:
 			handleWatcherData(imapWatcher, postWatch, mgr, data, SERVICETYPE_IMAP)
 		// Respond to dbus poll requests
-		case <-pollBus.PollChan:
+		case <-pollBus.PollChan: // TODO: Room for improvements by bundling independent poll calls to one call to the PollChan
 			var wg sync.WaitGroup
 			for _, v := range mgr {
 				if v.authData.Error != plugins.ErrTokenExpired { // Do not poll if the new token hasn't been loaded yet
@@ -145,7 +145,7 @@ func handleWatcherData(watcher *accounts.Watcher, postWatch chan *PostWatch, mgr
 			log.Println("New account data for existing account with id", data.AccountId)
 			account.penaltyCount = 0
 			account.updateAuthData(data)
-			go account.Poll(false)
+			go account.Poll(false) // Needs to be called in a goroutine as otherwise qtcontacs' GetAvatar() will raise an error: "QSocketNotifier: Can only be used with threads started with QThread"
 		} else {
 			account.Delete()
 			delete(mgr, data.AccountId)
@@ -173,7 +173,7 @@ func handleWatcherData(watcher *accounts.Watcher, postWatch chan *PostWatch, mgr
 		if plugin != nil {
 			mgr[data.AccountId] = NewAccountManager(watcher, postWatch, plugin)
 			mgr[data.AccountId].updateAuthData(data)
-			go mgr[data.AccountId].Poll(true)
+			go mgr[data.AccountId].Poll(true) // Needs to be called in a goroutine as otherwise qtcontacs' GetAvatar() will raise an error: "QSocketNotifier: Can only be used with threads started with QThread"
 		}
 	}
 }
