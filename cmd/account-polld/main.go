@@ -67,11 +67,12 @@ func init() {
 }
 
 func startMainLoop() {
-	mainLoopOnce.Do(qtcontact.MainLoopStart)
+	mainLoopOnce.Do(func() {
+		go qtcontact.MainLoopStart()
+	})
 }
 
 func main() {
-	time.Sleep(10 * time.Second)
 	// TODO NewAccount called here is just for playing purposes.
 	postWatch := make(chan *PostWatch)
 
