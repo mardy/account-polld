@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"log"
 
@@ -70,6 +71,7 @@ func startMainLoop() {
 }
 
 func main() {
+	time.Sleep(10 * time.Second)
 	// TODO NewAccount called here is just for playing purposes.
 	postWatch := make(chan *PostWatch)
 

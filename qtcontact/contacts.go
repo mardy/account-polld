@@ -44,14 +44,12 @@ func GetAvatar(emailAddress string) string {
 		avatarPathChan <- C.GoString(C.getAvatar(C.CString(emailAddress)))
 	}()
 
-	time.Sleep(5 * time.Second)
-
 	for {
 		select {
 		case path := <-avatarPathChan:
 			log.Println("got path")
 			return path
-		case <-time.After(5 * time.Second):
+		case <-time.After(8 * time.Second):
 			log.Println("Timeout while seeking avatar for", emailAddress)
 			return ""
 		}
