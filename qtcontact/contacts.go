@@ -41,7 +41,8 @@ func GetAvatar(emailAddress string) string {
 	avatarPathChan := make(chan string, 1)
 
 	go func() {
-		avatarPathChan <- C.GoString(C.getAvatar(C.CString(emailAddress)))
+		// avatarPathChan <- C.GoString(C.getAvatar(C.CString(emailAddress)))
+		log.Println(C.GoString(C.getAvatar(C.CString(emailAddress))))
 	}()
 
 	for {
