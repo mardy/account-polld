@@ -35,8 +35,6 @@ extern "C" {
 }
 #endif
 
-#define trace(...) fprintf(stderr, __VA_ARGS__)
-
 QTCONTACTS_USE_NAMESPACE
 
 int mainloopStart() {
@@ -45,7 +43,6 @@ int mainloopStart() {
     static int argc = 1;
 
     QCoreApplication mApp(argc, argv);
-    trace("exec\n");
     return mApp.exec();
 }
 
@@ -64,9 +61,7 @@ QString Avatar::retrieveThumbnail(const QString& email) {
 
     QContactManager manager ("galera");
     QContactDetailFilter filter(QContactEmailAddress::match(email)); // TODO: Implement optimization hints from https://doc-snapshots.qt.io/qt-mobility/qcontactmanager.html#contact
-    trace("before\n");
-    QList<QContact> contacts = manager.contacts(filter); // TODO: Hangs when started from the first invocation of poll on an account manager (calls from the main function before are not affected by this)
-    trace("after\n");
+    QList<QContact> contacts = manager.contacts(filter);
     if(contacts.size() > 0) {
         avatar = contacts[0].detail<QContactAvatar>().imageUrl().path();
     }
