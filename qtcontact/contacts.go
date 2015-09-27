@@ -47,7 +47,6 @@ func GetAvatar(emailAddress string) string {
 	for {
 		select {
 		case path := <-avatarPathChan:
-			log.Println("got path")
 			return path
 		case <-time.After(8 * time.Second):
 			log.Println("Timeout while seeking avatar for", emailAddress)
