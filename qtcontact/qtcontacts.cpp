@@ -45,6 +45,7 @@ int mainloopStart() {
     static int argc = 1;
 
     QCoreApplication mApp(argc, argv);
+    trace("exec\n");
     return mApp.exec();
 }
 
@@ -63,11 +64,9 @@ QString Avatar::retrieveThumbnail(const QString& email) {
 
     QContactManager manager ("galera");
     QContactDetailFilter filter(QContactEmailAddress::match(email));
-    trace("before");
-    QList<QContact> contacts = manager.contacts(filter);
-    trace("after");
-    // TODO: contacts() takes a long time to finish, improve this using the information from https://projects.kde.org/projects/qt5/qtpim/repository/revisions/master/entry/src/contacts/qcontactfetchhint.cpp and https://projects.kde.org/projects/qt5/qtpim/repository/revisions/master/entry/src/contacts/qcontactmanager.cpp
-    // Does it help if we store the manager we use?
+    trace("before\n");
+    QList<QContact> contacts = manager.contacts(filter); // TODO: Hangs when started from the first invocation of poll on an account manager (calls from the main function before are not affected by this)
+    trace("after\n");
     if(contacts.size() > 0) {
         avatar = contacts[0].detail<QContactAvatar>().imageUrl().path();
     }
