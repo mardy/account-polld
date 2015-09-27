@@ -29,8 +29,6 @@ import (
 
 func MainLoopStart() {
 	go C.mainloopStart()
-	time.Sleep(5 * time.Second)
-	log.Println("avatar:", GetAvatar("nikwen.developer@gmail.com"))
 }
 
 // GetAvatar retrieves an avatar path for the specified email
@@ -48,12 +46,12 @@ func GetAvatar(emailAddress string) string {
 
 	for {
 		select {
-		case <-time.After(10 * time.Second):
-			log.Println("Timeout while seeking avatar for", emailAddress)
-			return ""
 		case path := <-avatarPathChan:
 			log.Println("got path")
 			return path
+		case <-time.After(50 * time.Second):
+			log.Println("Timeout while seeking avatar for", emailAddress)
+			return ""
 		}
 	}
 }
