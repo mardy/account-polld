@@ -63,7 +63,7 @@ QString Avatar::retrieveThumbnail(const QString& email) {
     QString avatar;
 
     QContactManager manager ("galera");
-    QContactDetailFilter filter(QContactEmailAddress::match(email));
+    QContactDetailFilter filter(QContactEmailAddress::match(email)); // TODO: Implement optimization hints from https://doc-snapshots.qt.io/qt-mobility/qcontactmanager.html#contact
     trace("before\n");
     QList<QContact> contacts = manager.contacts(filter); // TODO: Hangs when started from the first invocation of poll on an account manager (calls from the main function before are not affected by this)
     trace("after\n");

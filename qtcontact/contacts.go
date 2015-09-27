@@ -40,6 +40,8 @@ func GetAvatar(emailAddress string) string {
 
 	avatarPathChan := make(chan string, 1)
 
+	time.Sleep(30 * time.Second)
+
 	go func() {
 		avatarPathChan <- C.GoString(C.getAvatar(C.CString(emailAddress)))
 	}()
