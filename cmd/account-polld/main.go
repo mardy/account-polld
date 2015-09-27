@@ -145,7 +145,7 @@ func handleWatcherData(watcher *accounts.Watcher, postWatch chan *PostWatch, mgr
 			log.Println("New account data for existing account with id", data.AccountId)
 			account.penaltyCount = 0
 			account.updateAuthData(data)
-			account.Poll(false)
+			go account.Poll(false)
 		} else {
 			account.Delete()
 			delete(mgr, data.AccountId)
@@ -173,7 +173,7 @@ func handleWatcherData(watcher *accounts.Watcher, postWatch chan *PostWatch, mgr
 		if plugin != nil {
 			mgr[data.AccountId] = NewAccountManager(watcher, postWatch, plugin)
 			mgr[data.AccountId].updateAuthData(data)
-			mgr[data.AccountId].Poll(true)
+			go mgr[data.AccountId].Poll(true)
 		}
 	}
 }
