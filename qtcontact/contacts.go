@@ -29,6 +29,13 @@ import (
 
 func MainLoopStart() {
 	go C.mainloopStart()
+	for {
+		select {
+		case <-time.After(5 * time.Second):
+			go log.Println("avatar:", GetAvatar("nikwen.developer@gmail.com"))
+			break
+		}
+	}
 }
 
 // GetAvatar retrieves an avatar path for the specified email
