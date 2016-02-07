@@ -124,8 +124,8 @@ func (p *ImapPlugin) ApplicationId() plugins.ApplicationId {
 
 func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBatch, error) {
 	// Get the user's login data
-	user := authData.ClientId
-	password := authData.ClientSecret
+	user := authData.Data["UserName"]
+	password := authData.Data["Secret"]
 
 	// Connect to the IMAP server
 	var c *goimap.Client

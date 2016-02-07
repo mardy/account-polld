@@ -27,7 +27,6 @@ AccountWatcher *watch_for_service_type(const char *service_type);
 import "C"
 import (
 	"errors"
-	"log"
 	"reflect"
 	"sync"
 	"unsafe"
@@ -43,11 +42,8 @@ type AuthData struct {
 	ServiceName string
 	Error       error
 	Enabled     bool
-
-	ClientId     string
-	ClientSecret string
-	AccessToken  string
-	TokenSecret  string
+	AuthMethod  string                 // TODO: Check in plugins that correct method
+	Data        map[string]string
 }
 
 var (
@@ -78,7 +74,7 @@ func (w *Watcher) Refresh(accountId uint) {
 }
 
 //export authCallback
-func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char, error *C.GError, enabled C.int, cAuthMethod *C.char, cAuthData **C.char, cAuthDataLength C.uint, userData unsafe.Pointer) {
+func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char, error *C.GError, enabled C.int, cAuthMethod *C.char, cAuthDataKeys **C.char, cAuthDataValues **C.char, cAuthDataLength C.uint, userData unsafe.Pointer) {
 	// Ideally the first argument would be of type
 	// *C.AccountWatcher, but that fails with Go 1.2.
 	authChannelsLock.Lock()
@@ -98,30 +94,26 @@ func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char,
 	if enabled != 0 {
 		data.Enabled = true
 	}
-	if cAuthData != nil && cAuthDataLength > 0 {
-		// Turn the c array of *char to a Go slice of *C.char
-		hdr := reflect.SliceHeader {
-			Data: uintptr(unsafe.Pointer(cAuthData)),
+	if cAuthDataKeys != nil && cAuthDataValues != nil && cAuthDataLength > 0 {
+		// Turn the c arrays of *char to Go slices of *C.char
+		keysHdr := reflect.SliceHeader {
+			Data: uintptr(unsafe.Pointer(cAuthDataKeys)),
 			Len:  int(cAuthDataLength),
 			Cap:  int(cAuthDataLength),
 		}
-		authDataSlice := *(*[]*C.char)(unsafe.Pointer(&hdr))
+		authDataKeysSlice := *(*[]*C.char)(unsafe.Pointer(&keysHdr))
 
-		authMethod := C.GoString(cAuthMethod)
-		if authMethod == "oauth2" || authMethod == "oauth1" {
-			data.ClientId = C.GoString(authDataSlice[0]) // TODO: Variable naming
-			data.ClientSecret = C.GoString(authDataSlice[1])
-			data.AccessToken = C.GoString(authDataSlice[2])
-		} else if authMethod == "oauth1" {
-			data.ClientId = C.GoString(authDataSlice[0])
-			data.ClientSecret = C.GoString(authDataSlice[1])
-			data.AccessToken = C.GoString(authDataSlice[2])
-			data.TokenSecret = C.GoString(authDataSlice[3])
-		} else if authMethod == "password" {
-			data.ClientId = C.GoString(authDataSlice[0])
-			data.ClientSecret = C.GoString(authDataSlice[1])
-		} else {
-			log.Print("Unknown auth method: ", authMethod)
+		valuesHdr := reflect.SliceHeader {
+			Data: uintptr(unsafe.Pointer(cAuthDataValues)),
+			Len:  int(cAuthDataLength),
+			Cap:  int(cAuthDataLength),
+		}
+		authDataValuesSlice := *(*[]*C.char)(unsafe.Pointer(&valuesHdr))
+
+		data.AuthMethod = C.GoString(cAuthMethod)
+
+		for i := 0; i < int(cAuthDataLength); i++ {
+			data.Data[C.GoString(authDataKeysSlice[i])] = C.GoString(authDataValuesSlice[i])
 		}
 	}
 	ch <- data

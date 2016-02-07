@@ -158,7 +158,6 @@ func (a *AccountManager) poll() {
 	}
 
 	if a.authData.Error != nil {
-		log.Println("Account", a.authData.AccountId, ", ", a.authData.ClientId, ", ", a.authData.ClientSecret)
 		log.Println("Account", a.authData.AccountId, "failed to authenticate:", a.authData.Error)
 		a.doneChan <- authError
 		return

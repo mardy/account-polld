@@ -66,13 +66,13 @@ func (p *twitterPlugin) request(authData *accounts.AuthData, path string) (*http
 
 	client := oauth.Client{
 		Credentials: oauth.Credentials{
-			Token:  authData.ClientId,
-			Secret: authData.ClientSecret,
+			Token:  authData.Data["ClientId"],
+			Secret: authData.Data["ClientSecret"],
 		},
 	}
 	token := &oauth.Credentials{
-		Token:  authData.AccessToken,
-		Secret: authData.TokenSecret,
+		Token:  authData.Data["AccessToken"],
+		Secret: authData.Data["TokenSecret"],
 	}
 	return client.Get(http.DefaultClient, token, u.String(), query)
 }

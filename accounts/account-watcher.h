@@ -26,7 +26,8 @@ typedef void (*AccountEnabledCallback)(AccountWatcher *watcher,
                                        GError *error,
                                        int enabled,
                                        const char *auth_method,
-                                       const char **auth_data,
+                                       const char **auth_data_keys,
+                                       const char **auth_data_values,
                                        uint auth_data_length,
                                        void *user_data);
 

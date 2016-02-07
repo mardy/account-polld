@@ -95,7 +95,8 @@ static void account_info_notify(AccountInfo *info, GError *error) {
     AgService *service = ag_account_service_get_service(info->account_service);
 
     const char *service_name = ag_service_get_name(service);
-    GPtrArray *auth_data = g_ptr_array_sized_new(2);
+    GPtrArray *auth_data_keys = g_ptr_array_sized_new(2);
+    GPtrArray *auth_data_values = g_ptr_array_sized_new(2);
     char *auth_method = NULL;
 
     // trace("Auth params: %s\n", g_variant_print(info->auth_params, TRUE));
@@ -114,10 +115,13 @@ static void account_info_notify(AccountInfo *info, GError *error) {
             g_variant_lookup(info->auth_params, "ClientSecret", "&s", &client_secret);
             g_variant_lookup(info->session_data, "AccessToken", "&s", &access_token);
 
-            /* Build the result array */
-            g_ptr_array_add(auth_data, client_id);
-            g_ptr_array_add(auth_data, client_secret);
-            g_ptr_array_add(auth_data, access_token);
+            /* Build the result arrays */
+            g_ptr_array_add(auth_data_keys, "ClientId");
+            g_ptr_array_add(auth_data_keys, "ClientSecret");
+            g_ptr_array_add(auth_data_keys, "AccessToken");
+            g_ptr_array_add(auth_data_values, client_id);
+            g_ptr_array_add(auth_data_values, client_secret);
+            g_ptr_array_add(auth_data_values, access_token);
         } else if (g_strcmp0(info->auth_method, "oauth1") == 0) {
             auth_method = info->auth_method;
 
@@ -132,10 +136,14 @@ static void account_info_notify(AccountInfo *info, GError *error) {
             g_variant_lookup(info->session_data, "TokenSecret", "&s", &token_secret);
 
             /* Build the result array */
-            g_ptr_array_add(auth_data, consumer_key);
-            g_ptr_array_add(auth_data, consumer_secret);
-            g_ptr_array_add(auth_data, access_token);
-            g_ptr_array_add(auth_data, token_secret);
+            g_ptr_array_add(auth_data_keys, "ConsumerKey");
+            g_ptr_array_add(auth_data_keys, "ConsumerSecret");
+            g_ptr_array_add(auth_data_keys, "AccessToken");
+            g_ptr_array_add(auth_data_keys, "TokenSecret");
+            g_ptr_array_add(auth_data_values, consumer_key);
+            g_ptr_array_add(auth_data_values, consumer_secret);
+            g_ptr_array_add(auth_data_values, access_token);
+            g_ptr_array_add(auth_data_values, token_secret);
         } else if (g_strcmp0(info->auth_method, "password") == 0) {
             auth_method = info->auth_method;
 
@@ -146,8 +154,10 @@ static void account_info_notify(AccountInfo *info, GError *error) {
             g_variant_lookup(info->session_data, "Secret", "&s", &secret);
 
             /* Build the result array */
-            g_ptr_array_add(auth_data, user_name);
-            g_ptr_array_add(auth_data, secret);
+            g_ptr_array_add(auth_data_keys, "UserName");
+            g_ptr_array_add(auth_data_keys, "Secret");
+            g_ptr_array_add(auth_data_values, user_name);
+            g_ptr_array_add(auth_data_values, secret);
 
             /* TODO: Handle special data for imap accounts */
         }
@@ -165,11 +175,13 @@ static void account_info_notify(AccountInfo *info, GError *error) {
                             error,
                             info->enabled,
                             (const char *) auth_method,
-                            (const char **)auth_data->pdata,
-                            auth_data->len,
+                            (const char **)auth_data_keys->pdata,
+                            (const char **)auth_data_values->pdata,
+                            auth_data_values->len,
                             info->watcher->user_data);
 
-    g_ptr_array_free(auth_data, FALSE);
+    g_ptr_array_free(auth_data_keys, FALSE);
+    g_ptr_array_free(auth_data_values, FALSE);
 }
 
 static void account_info_login_cb(GObject *source, GAsyncResult *result, void *user_data) {

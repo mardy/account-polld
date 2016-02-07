@@ -109,10 +109,10 @@ func (p *GmailPlugin) ApplicationId() plugins.ApplicationId {
 func (p *GmailPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBatch, error) {
 	// This envvar check is to ease testing.
 	if token := os.Getenv("ACCOUNT_POLLD_TOKEN_GMAIL"); token != "" {
-		authData.AccessToken = token
+		authData.Data["AccessToken"] = token
 	}
 
-	resp, err := p.requestMessageList(authData.AccessToken)
+	resp, err := p.requestMessageList(authData.Data["AccessToken"])
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (p *GmailPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageB
 
 	// TODO use the batching API defined in https://developers.google.com/gmail/api/guides/batch
 	for i := range messages {
-		resp, err := p.requestMessage(messages[i].Id, authData.AccessToken)
+		resp, err := p.requestMessage(messages[i].Id, authData.Data["AccessToken"])
 		if err != nil {
 			return nil, err
 		}
