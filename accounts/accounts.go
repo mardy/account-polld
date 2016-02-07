@@ -110,6 +110,7 @@ func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char,
 		}
 		authDataValuesSlice := *(*[]*C.char)(unsafe.Pointer(&valuesHdr))
 
+		data.Data = make(map[string]string)
 		data.AuthMethod = C.GoString(cAuthMethod)
 
 		for i := 0; i < int(cAuthDataLength); i++ {
