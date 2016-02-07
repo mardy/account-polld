@@ -1,3 +1,48 @@
+account-polld (0.1+16.04.20151221-0ubuntu1) xenial; urgency=medium
+
+  [ jonas-drange ]
+  * Force parsing of email address even if it violates RFC 5322. Encode
+    icon file paths since unity-notifications require it. Summarize
+    notification bubbles when > 10 in a batch, but never summarize in
+    the indicator. (LP: #1429276)
+
+ -- Jonas G. Drange <ci-train-bot@canonical.com>  Mon, 21 Dec 2015 12:18:40 +0000
+
+account-polld (0.1+16.04.20151103-0ubuntu1) xenial; urgency=medium
+
+  [ Niklas Wenzel ]
+  * Fix a timeout error in the qtcontacts module which occured when a
+    notification was shown directly after creating an account (fixes LP:
+    #1498214) (LP: #1498214)
+  * Fix the timeout logic in the qtcontacts module (part of LP:
+    #1498214) (LP: #1498214)
+
+ -- Jonas G. Drange <ci-train-bot@canonical.com>  Tue, 03 Nov 2015 13:40:49 +0000
+
+account-polld (0.1+15.10.20151016.1-0ubuntu1) wily; urgency=medium
+
+  [ Alberto Mardegan ]
+  * Remove non-working facebook integration. (LP: #1493733)
+  * debian/control, debian/account-polld.conf:
+    Remove mentions of Facebook from the descriptions.
+
+  [ Niklas Wenzel ]
+  * Tell libsignon-glib not to open a trust session by passing
+    SIGNON_POLICY_NO_USER_INTERACTION as the
+    SIGNON_SESSION_DATA_UI_POLICY value (part of the issue experienced
+    in LP: #1496773) (LP: #1496773)
+  * When authentification of an account fails continuously, we should
+    wait a bit before trying again (part of the issue experienced in LP:
+    #1496773) (LP: #1496773)
+
+ -- Jonas G. Drange <ci-train-bot@canonical.com>  Fri, 16 Oct 2015 13:13:10 +0000
+
+account-polld (0.1+15.04.20150410-0ubuntu2~gcc5.1) wily; urgency=medium
+
+  * No-change test rebuild for g++5 ABI transition
+
+ -- Steve Langasek <steve.langasek@ubuntu.com>  Wed, 15 Jul 2015 07:18:29 +0000
+
 account-polld (0.1+15.04.20150410-0ubuntu1) vivid; urgency=medium
 
   [ John R. Lenton ]

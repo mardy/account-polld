@@ -23,7 +23,9 @@ import (
 	"net/mail"
 	"net/url"
 	"os"
+	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"log"
@@ -37,8 +39,10 @@ import (
 const (
 	APP_ID           = "com.ubuntu.developer.webapps.webapp-gmail_webapp-gmail"
 	gmailDispatchUrl = "https://mail.google.com/mail/mu/mp/#cv/priority/^smartlabel_%s/%s"
-	// this means 3 individual messages + 1 bundled notification.
-	individualNotificationsLimit = 2
+	// If there's more than 10 emails in one batch, we don't show 10 notification
+	// bubbles, but instead show one summary. We always show all notifications in the
+	// indicator.
+	individualNotificationsLimit = 10
 	pluginName                   = "gmail"
 )
 
@@ -51,6 +55,9 @@ var timeDelta = time.Duration(time.Hour * 24)
 
 // trackDelta defines how old messages can be before removed from tracking
 var trackDelta = time.Duration(time.Hour * 24 * 7)
+
+// regexp for identifying non-ascii characters
+var nonAsciiChars, _ = regexp.Compile("[^\x00-\x7F]")
 
 type GmailPlugin struct {
 	// reportedIds holds the messages that have already been notified. This
@@ -154,12 +161,34 @@ func (p *GmailPlugin) createNotifications(messages []message) ([]*plugins.PushMe
 		from := hdr[hdrFROM]
 		var avatarPath string
 
-		if emailAddress, err := mail.ParseAddress(hdr[hdrFROM]); err == nil {
-			if emailAddress.Name != "" {
-				from = emailAddress.Name
-				avatarPath = qtcontact.GetAvatar(emailAddress.Address) // TODO: Blocking when displaying a notification on startup (LP: #1498214)
+		emailAddress, err := mail.ParseAddress(from)
+		if err != nil {
+			// If the email address contains non-ascii characters, we get an
+			// error so we're going to try again, this time mangling the name
+			// by removing all non-ascii characters. We only care about the email
+			// address here anyway.
+			// XXX: We can't check the error message due to [1]: the error
+			// message is different in go < 1.3 and > 1.5.
+			// [1] https://github.com/golang/go/issues/12492
+			mangledAddr := nonAsciiChars.ReplaceAllString(from, "")
+			mangledEmail, _ := mail.ParseAddress(mangledAddr)
+			if err != nil {
+				emailAddress = mangledEmail
+			}
+		} else {
+			from = emailAddress.Name
+		}
+
+		if emailAddress != nil {
+			avatarPath = qtcontact.GetAvatar(emailAddress.Address) // TODO: Blocking when displaying a notification on startup (LP: #1498214)
+			// If icon path starts with a path separator, assume local file path,
+			// encode it and prepend file scheme defined in RFC 1738.
+			if strings.HasPrefix(avatarPath, string(os.PathSeparator)) {
+				avatarPath = url.QueryEscape(avatarPath)
+				avatarPath = "file://" + avatarPath
 			}
 		}
+
 		msgStamp := hdr.getTimestamp()
 
 		if _, ok := pushMsgMap[msg.ThreadId]; ok {
@@ -186,12 +215,14 @@ func (p *GmailPlugin) createNotifications(messages []message) ([]*plugins.PushMe
 
 }
 func (p *GmailPlugin) handleOverflow(pushMsg []*plugins.PushMessage) *plugins.PushMessage {
-	// TRANSLATORS: This represents a notification summary about more unread emails
-	summary := gettext.Gettext("More unread emails available")
 	// TODO it would probably be better to grab the estimate that google returns in the message list.
 	approxUnreadMessages := len(pushMsg)
-	// TRANSLATORS: the first %d refers to approximate additional email message count
-	body := fmt.Sprintf(gettext.Gettext("You have about %d more unread messages"), approxUnreadMessages)
+
+	// TRANSLATORS: the %d refers to the number of new email messages.
+	summary := fmt.Sprintf(gettext.Gettext("You have %d new messages"), approxUnreadMessages)
+
+	body := ""
+
 	// fmt with label personal and no threadId
 	action := fmt.Sprintf(gmailDispatchUrl, "personal")
 	epoch := time.Now().Unix()

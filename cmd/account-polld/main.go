@@ -28,7 +28,6 @@ import (
 	"launchpad.net/account-polld/accounts"
 	"launchpad.net/account-polld/gettext"
 	"launchpad.net/account-polld/plugins"
-	"launchpad.net/account-polld/plugins/facebook"
 	"launchpad.net/account-polld/plugins/gmail"
 	"launchpad.net/account-polld/plugins/imap"
 	"launchpad.net/account-polld/plugins/twitter"
@@ -48,9 +47,8 @@ const (
 	SERVICETYPE_WEBAPPS = "webapps"
 	SERVICETYPE_IMAP    = "imap"
 
-	SERVICENAME_GMAIL    = "com.ubuntu.developer.webapps.webapp-gmail_webapp-gmail"
-	SERVICENAME_TWITTER  = "com.ubuntu.developer.webapps.webapp-twitter_webapp-twitter"
-	SERVICENAME_FACEBOOK = "com.ubuntu.developer.webapps.webapp-facebook_webapp-facebook"
+	SERVICENAME_GMAIL   = "com.ubuntu.developer.webapps.webapp-gmail_webapp-gmail"
+	SERVICENAME_TWITTER = "com.ubuntu.developer.webapps.webapp-twitter_webapp-twitter"
 )
 
 const (
@@ -103,30 +101,23 @@ func monitorAccounts(postWatch chan *PostWatch, pollBus *pollbus.PollBus) {
 	// map: account id -> account manager
 	mgr := make(map[uint]*AccountManager)
 
+	var wg sync.WaitGroup
+
 	for {
 		select {
 		// Handle account creation, new account data and account deletion
 		case data := <-webappWatcher.C:
-			handleWatcherData(webappWatcher, postWatch, mgr, data, SERVICETYPE_WEBAPPS)
+			handleWatcherData(&wg, webappWatcher, postWatch, mgr, data, SERVICETYPE_WEBAPPS)
 		case data := <-imapWatcher.C:
-			handleWatcherData(imapWatcher, postWatch, mgr, data, SERVICETYPE_IMAP)
+			handleWatcherData(&wg, imapWatcher, postWatch, mgr, data, SERVICETYPE_IMAP)
 		// Respond to dbus poll requests
 		case <-pollBus.PollChan: // TODO: Room for improvements by bundling independent poll calls to one call to the PollChan
-			var wg sync.WaitGroup
+			wg.Wait() // Finish all running Poll() calls before potentially polling the same accounts again
 			for _, v := range mgr {
 				if v.authData.Error != plugins.ErrTokenExpired { // Do not poll if the new token hasn't been loaded yet
 					wg.Add(1)
 					go func(accountManager *AccountManager) {
 						defer wg.Done()
-
-						if accountManager.authData.Error != nil {
-							// Make the account try to authenticate again in Poll()
-							log.Println("Retrying to authenticate existing account with id",
-								accountManager.authData.AccountId)
-							accountManager.penaltyCount = 0
-							accountManager.authData.Error = nil
-						}
-
 						accountManager.Poll(false)
 					}(v)
 				} else {
@@ -139,13 +130,21 @@ func monitorAccounts(postWatch chan *PostWatch, pollBus *pollbus.PollBus) {
 	}
 }
 
-func handleWatcherData(watcher *accounts.Watcher, postWatch chan *PostWatch, mgr map[uint]*AccountManager, data accounts.AuthData, serviceType string) {
+func handleWatcherData(wg *sync.WaitGroup, watcher *accounts.Watcher, postWatch chan *PostWatch, mgr map[uint]*AccountManager, data accounts.AuthData, serviceType string) {
 	if account, ok := mgr[data.AccountId]; ok {
 		if data.Enabled {
 			log.Println("New account data for existing account with id", data.AccountId)
 			account.penaltyCount = 0
 			account.updateAuthData(data)
-			go account.Poll(false) // Needs to be called in a goroutine as otherwise qtcontacs' GetAvatar() will raise an error: "QSocketNotifier: Can only be used with threads started with QThread"
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				// Poll() needs to be called asynchronously as otherwise qtcontacs' GetAvatar() will
+				// raise an error: "QSocketNotifier: Can only be used with threads started with QThread"
+				account.Poll(false)
+			}()
+			// No wg.Wait() here as it would break GetAvatar() again.
+			// Instead we have a wg.Wait() before the PollChan polling below.
 		} else {
 			account.Delete()
 			delete(mgr, data.AccountId)
@@ -160,9 +159,6 @@ func handleWatcherData(watcher *accounts.Watcher, postWatch chan *PostWatch, mgr
 			case SERVICENAME_GMAIL:
 				log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
 				plugin = gmail.New(data.AccountId)
-			case SERVICENAME_FACEBOOK:
-				log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
-				plugin = facebook.New(data.AccountId)
 			case SERVICENAME_TWITTER:
 				log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
 				plugin = twitter.New()
@@ -173,7 +169,15 @@ func handleWatcherData(watcher *accounts.Watcher, postWatch chan *PostWatch, mgr
 		if plugin != nil {
 			mgr[data.AccountId] = NewAccountManager(watcher, postWatch, plugin)
 			mgr[data.AccountId].updateAuthData(data)
-			go mgr[data.AccountId].Poll(true) // Needs to be called in a goroutine as otherwise qtcontacs' GetAvatar() will raise an error: "QSocketNotifier: Can only be used with threads started with QThread"
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				// Poll() needs to be called asynchronously as otherwise qtcontacs' GetAvatar() will
+				// raise an error: "QSocketNotifier: Can only be used with threads started with QThread"
+				mgr[data.AccountId].Poll(true)
+			}()
+			// No wg.Wait() here as it would break GetAvatar() again.
+			// Instead we have a wg.Wait() before the PollChan polling below.
 		}
 	}
 }
@@ -181,50 +185,23 @@ func handleWatcherData(watcher *accounts.Watcher, postWatch chan *PostWatch, mgr
 func postOffice(bus *dbus.Connection, postWatch chan *PostWatch) {
 	for post := range postWatch {
 		obj := bus.Object(POSTAL_SERVICE, pushObjectPath(post.appId))
-		pers, err := obj.Call(POSTAL_INTERFACE, "ListPersistent", post.appId)
-		if err != nil {
-			log.Println("Could not list previous messages:", err)
-			continue
-		}
-		var tags []string
-		tagmap := make(map[string]int)
-		if err := pers.Args(&tags); err != nil {
-			log.Println("Could not get tags:", err)
-			continue
-		}
-		log.Printf("Previous messages: %#v\n", tags)
-		for _, tag := range tags {
-			tagmap[tag]++
-		}
 
 		for _, batch := range post.batches {
-			// add individual notifications upto the batch limit
-			// (minus currently presented notifications). If
-			// overflowed and no overflow present, present that.
-			var notifs []*plugins.PushMessage
-			add := batch.Limit - tagmap[batch.Tag]
-			if add > 0 {
-				// there are less notifications presented than
-				// the limit; we can show some
-				if len(batch.Messages) < add {
-					notifs = batch.Messages
-				} else {
-					notifs = batch.Messages[:add]
-				}
-			}
+
+			notifs := batch.Messages
+			overflowing := len(notifs) > batch.Limit
+
 			for _, n := range notifs {
-				n.Notification.Tag = batch.Tag
-			}
-			ofTag := batch.Tag + "-overflow"
-			if len(notifs) < len(batch.Messages) {
-				// overflow
-				n := batch.OverflowHandler(batch.Messages[len(notifs):])
-				n.Notification.Tag = ofTag
-				if tagmap[ofTag] != 0 {
-					// sneakily, don't replace the overflow card,
-					// but do play the sound & etc
-					n.Notification.Card = nil
+				// We're overflowing, so no popups.
+				// See LP: #1527171
+				if overflowing {
+					n.Notification.Card.Popup = false
 				}
+			}
+
+			if overflowing {
+				n := batch.OverflowHandler(notifs)
+				n.Notification.Card.Persist = false
 				notifs = append(notifs, n)
 			}
 

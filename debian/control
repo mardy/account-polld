@@ -29,7 +29,7 @@ Depends: accountsservice,
 Built-Using: ${misc:Built-Using}
 Recommends: accountsservice,
 Description: Poll daemon for notifications though the Ubuntu Push Client
- This component polls facebook, twitter and gmail for updates and
+ This component polls twitter and gmail for updates and
  communicates with the postal service provided by the ubuntu push client
  to expose notifications for the click webapps for the aforementioned
  services.

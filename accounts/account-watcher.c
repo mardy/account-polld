@@ -206,9 +206,17 @@ static void account_info_login(AccountInfo *info) {
         return;
     }
 
+    /* Tell libsignon-glib not to open a trust session as we have no UI */
+    GVariantBuilder builder;
+    g_variant_builder_init(&builder, G_VARIANT_TYPE_VARDICT);
+    g_variant_builder_add(&builder, "{sv}",
+        SIGNON_SESSION_DATA_UI_POLICY,
+        g_variant_new_int32(SIGNON_POLICY_NO_USER_INTERACTION));
+
     info->auth_params = g_variant_ref_sink(
         ag_auth_data_get_login_parameters(
-            auth_data, NULL));
+            auth_data,
+            g_variant_builder_end(&builder)));
 
     signon_auth_session_process_async(
         info->session,

@@ -14,8 +14,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Launchpad-Export-Date: 2015-04-15 05:49+0000\n"
-"X-Generator: Launchpad (build 17428)\n"
+"X-Launchpad-Export-Date: 2015-12-29 05:35+0000\n"
+"X-Generator: Launchpad (build 17865)\n"
 
 #. TRANSLATORS: the %s is an appended "from" corresponding to an specific email thread
 #: plugins/gmail/gmail.go:167
@@ -48,7 +48,7 @@ msgstr "Имеются ещё непрочитанные письма"
 #: plugins/gmail/gmail.go:194
 #, c-format
 msgid "You have about %d more unread messages"
-msgstr ""
+msgstr "У вас ещё около %d непрочитанных сообщений"
 
 #. TRANSLATORS: The first %s refers to the twitter user's Name, the second %s to the username.
 #: plugins/twitter/twitter.go:112 plugins/twitter/twitter.go:172
