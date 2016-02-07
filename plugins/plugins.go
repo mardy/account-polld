@@ -254,5 +254,5 @@ func DefaultSound() string {
 
 // DefaultVibration returns a Vibrate with the default vibration
 func DefaultVibration() *Vibrate {
-	return &Vibrate{Duration: 200}
+	return &Vibrate{Duration: 1000}
 }
