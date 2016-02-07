@@ -42,7 +42,7 @@ type AuthData struct {
 	ServiceName string
 	Error       error
 	Enabled     bool
-	AuthMethod  string                 // TODO: Check in plugins that correct method
+	Method      string
 	Data        map[string]string
 }
 
@@ -111,7 +111,7 @@ func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char,
 		authDataValuesSlice := *(*[]*C.char)(unsafe.Pointer(&valuesHdr))
 
 		data.Data = make(map[string]string)
-		data.AuthMethod = C.GoString(cAuthMethod)
+		data.Method = C.GoString(cAuthMethod)
 
 		for i := 0; i < int(cAuthDataLength); i++ {
 			data.Data[C.GoString(authDataKeysSlice[i])] = C.GoString(authDataValuesSlice[i])

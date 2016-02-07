@@ -18,6 +18,7 @@ package twitter
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -199,6 +200,10 @@ func (p *twitterPlugin) consolidateDirectMessages(pushMsg []*plugins.PushMessage
 }
 
 func (p *twitterPlugin) Poll(authData *accounts.AuthData) (batches []*plugins.PushMessageBatch, err error) {
+	if authData.Method != "oauth2" {
+		return nil, errors.New("passed auth data is not of type 'oauth2'")
+	}
+
 	url := "statuses/mentions_timeline.json"
 	if p.lastMentionId > 0 {
 		url = fmt.Sprintf("%s?since_id=%d", url, p.lastMentionId)

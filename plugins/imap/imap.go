@@ -18,6 +18,7 @@ package imap
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -123,6 +124,10 @@ func (p *ImapPlugin) ApplicationId() plugins.ApplicationId {
 }
 
 func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBatch, error) {
+	if authData.Method != "password" {
+		return nil, errors.New("passed auth data is not of type 'password'")
+	}
+
 	// Get the user's login data
 	user := authData.Data["UserName"]
 	password := authData.Data["Secret"]

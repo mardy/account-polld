@@ -18,6 +18,7 @@ package gmail
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/mail"
@@ -107,6 +108,10 @@ func (p *GmailPlugin) ApplicationId() plugins.ApplicationId {
 }
 
 func (p *GmailPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBatch, error) {
+	if authData.Method != "oauth2" {
+		return nil, errors.New("passed auth data is not of type 'oauth2'")
+	}
+
 	// This envvar check is to ease testing.
 	if token := os.Getenv("ACCOUNT_POLLD_TOKEN_GMAIL"); token != "" {
 		authData.Data["AccessToken"] = token
