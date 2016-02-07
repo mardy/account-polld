@@ -111,7 +111,7 @@ type Notification struct {
 	// Card represents a specific bubble to give to the user
 	Card *Card `json:"card,omitempty"`
 	// Vibrate is the haptic feedback part of a notification.
-	Vibrate *Vibrate `json:"vibrate,omitempty"`
+	Vibrate bool `json:"vibrate,omitempty"`
 	// EmblemCounter represents and application counter hint
 	// related to the notification.
 	EmblemCounter *EmblemCounter `json:"emblem-counter,omitempty"`
