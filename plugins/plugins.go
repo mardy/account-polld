@@ -139,19 +139,6 @@ type Card struct {
 	Timestamp int64 `json:"Timestamp,omitempty"`
 }
 
-// Vibrate is part of a notification and represents the user haptic hints
-// for a specific notification.
-//
-// Duration cannot be used together with Pattern and Repeat.
-type Vibrate struct {
-	// Duration in milliseconds.
-	Duration uint `json:"duration,omitempty"`
-	// Pattern is a list of on->off durations that create a pattern.
-	Pattern []uint `json:"pattern,omitempty"`
-	// Repeat is the number of times a Pattern is to be repeated.
-	Repeat uint `json:"repeat,omitempty"`
-}
-
 // EmblemCounter is part of a notification and represents the application visual
 // hints related to a notification.
 type EmblemCounter struct {
