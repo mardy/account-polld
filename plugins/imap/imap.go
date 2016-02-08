@@ -288,7 +288,7 @@ func (p *ImapPlugin) createNotifications(messages []*Message) []*plugins.PushMes
 		// Get the sender's avatar if the email address is in the user's contacts list
 		var avatarPath string
 		if len(address.Address) > 0 {
-			avatarPath = qtcontact.GetAvatar(address.Address) // TODO: Blocking when displaying a notification on startup (LP: #1498214)
+			avatarPath = qtcontact.GetAvatar(address.Address)
 		}
 
 		if timestamp.Sub(msg.date) < timeDelta {
