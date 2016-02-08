@@ -200,7 +200,6 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	messages := []*Message{}
 
 	if len(newUids) > 0 {
-		// TODO: Fetch the bodies of the 3 most recent unread messages by their uids (we do not display more than 3 anyway) and create dummy messages for the other ones?
 		set, _ := goimap.NewSeqSet("")
 		set.AddNum(newUids...) // set.AddNum(newUids[Math.max(len(newUids)-(individualNotificationsLimit+1), 0):]...)
 		cmd, err = c.UIDFetch(set, "RFC822", "UID", "BODY[]")
