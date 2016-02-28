@@ -107,7 +107,7 @@ func monitorAccounts(postWatch chan *PostWatch, pollBus *pollbus.PollBus) {
 		case data := <-webappWatcher.C:
 			handleWatcherData(&wg, webappWatcher, postWatch, mgr, data, SERVICETYPE_WEBAPPS)
 		// Respond to dbus poll requests
-		case <-pollBus.PollChan: // TODO: Room for improvements by bundling independent poll calls to one call to the PollChan
+		case <-pollBus.PollChan:
 			wg.Wait() // Finish all running Poll() calls before potentially polling the same accounts again
 			for _, v := range mgr {
 				if v.authData.Error != plugins.ErrTokenExpired { // Do not poll if the new token hasn't been loaded yet
