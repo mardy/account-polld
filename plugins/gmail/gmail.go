@@ -18,7 +18,6 @@ package gmail
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/mail"
