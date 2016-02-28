@@ -28,6 +28,7 @@ import (
 	"launchpad.net/account-polld/gettext"
 	"launchpad.net/account-polld/plugins"
 	"launchpad.net/account-polld/plugins/gmail"
+	"launchpad.net/account-polld/plugins/imap"
 	"launchpad.net/account-polld/plugins/twitter"
 	"launchpad.net/account-polld/pollbus"
 	"launchpad.net/account-polld/qtcontact"
@@ -43,6 +44,7 @@ type PostWatch struct {
    end points for the notifications */
 const (
 	SERVICETYPE_WEBAPPS = "webapps"
+	SERVICETYPE_IMAP    = "imap"
 
 	SERVICENAME_GMAIL   = "com.ubuntu.developer.webapps.webapp-gmail_webapp-gmail"
 	SERVICENAME_TWITTER = "com.ubuntu.developer.webapps.webapp-twitter_webapp-twitter"
@@ -95,6 +97,7 @@ func main() {
 func monitorAccounts(postWatch chan *PostWatch, pollBus *pollbus.PollBus) {
 	// register account watchers
 	webappWatcher := accounts.NewWatcher(SERVICETYPE_WEBAPPS)
+	imapWatcher := accounts.NewWatcher(SERVICETYPE_IMAP)
 
 	// map: account id -> account manager
 	mgr := make(map[uint]*AccountManager)
@@ -106,6 +109,8 @@ func monitorAccounts(postWatch chan *PostWatch, pollBus *pollbus.PollBus) {
 		// Handle account creation, new account data and account deletion
 		case data := <-webappWatcher.C:
 			handleWatcherData(&wg, webappWatcher, postWatch, mgr, data, SERVICETYPE_WEBAPPS)
+		case data := <-imapWatcher.C:
+			handleWatcherData(&wg, imapWatcher, postWatch, mgr, data, SERVICETYPE_IMAP)
 		// Respond to dbus poll requests
 		case <-pollBus.PollChan:
 			wg.Wait() // Finish all running Poll() calls before potentially polling the same accounts again
@@ -147,7 +152,10 @@ func handleWatcherData(wg *sync.WaitGroup, watcher *accounts.Watcher, postWatch 
 		}
 	} else if data.Enabled {
 		var plugin plugins.Plugin = nil
-		if serviceType == SERVICETYPE_WEBAPPS { // Allows other service types to be added here in the fu
+		if serviceType == SERVICETYPE_IMAP { // Allow any app to display imap notifications
+			log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
+			plugin = imap.New(data.ServiceName, data.AccountId)
+		} else {
 			switch data.ServiceName {
 			case SERVICENAME_GMAIL:
 				log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
