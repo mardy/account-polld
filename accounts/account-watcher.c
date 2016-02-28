@@ -168,7 +168,7 @@ static void account_info_notify(AccountInfo *info, GError *error) {
                             service_name,
                             error,
                             info->enabled,
-                            (const char *) auth_method,
+                            (const char *)auth_method,
                             (const char **)auth_data_keys->pdata,
                             (const char **)auth_data_values->pdata,
                             auth_data_values->len,
