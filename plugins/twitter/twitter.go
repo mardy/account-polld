@@ -46,10 +46,11 @@ type twitterPlugin struct {
 	lastMentionId       int64
 	lastDirectMessageId int64
 	bootstrap           bool
+	accountId           uint
 }
 
-func New() plugins.Plugin {
-	return &twitterPlugin{}
+func New(accountId uint) plugins.Plugin {
+	return &twitterPlugin{accountId: accountId}
 }
 
 func (p *twitterPlugin) ApplicationId() plugins.ApplicationId {
@@ -201,7 +202,7 @@ func (p *twitterPlugin) consolidateDirectMessages(pushMsg []*plugins.PushMessage
 
 func (p *twitterPlugin) Poll(authData *accounts.AuthData) (batches []*plugins.PushMessageBatch, err error) {
 	if authData.Method != "oauth2" {
-		return nil, errors.New("passed auth data is not of type 'oauth2'")
+		return nil, fmt.Errorf("twitter plugin: passed auth data for account with id %d is not of type 'oauth2'", p.accountId)
 	}
 
 	url := "statuses/mentions_timeline.json"

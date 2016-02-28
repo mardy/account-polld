@@ -109,7 +109,7 @@ func (p *GmailPlugin) ApplicationId() plugins.ApplicationId {
 
 func (p *GmailPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBatch, error) {
 	if authData.Method != "oauth2" {
-		return nil, errors.New("passed auth data is not of type 'oauth2'")
+		return nil, fmt.Errorf("gmail plugin: passed auth data for account with id %d is not of type 'oauth2'", p.accountId)
 	}
 
 	// This envvar check is to ease testing.

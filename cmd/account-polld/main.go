@@ -163,7 +163,7 @@ func handleWatcherData(wg *sync.WaitGroup, watcher *accounts.Watcher, postWatch 
 				plugin = gmail.New(data.AccountId)
 			case SERVICENAME_TWITTER:
 				log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
-				plugin = twitter.New()
+				plugin = twitter.New(data.AccountId)
 			default:
 				log.Println("Unhandled account with id", data.AccountId, "for", data.ServiceName)
 			}

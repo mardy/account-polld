@@ -99,10 +99,6 @@ static void account_info_notify(AccountInfo *info, GError *error) {
     GPtrArray *auth_data_values = g_ptr_array_sized_new(2);
     char *auth_method = NULL;
 
-    // trace("Auth params: %s\n", g_variant_print(info->auth_params, TRUE));
-    // trace("Session data: %s\n", g_variant_print(info->session_data, TRUE));
-    // trace("Auth method: %s\n", info->auth_method);
-
     if (error == NULL && info->auth_params != NULL && info->session_data != NULL) {
         if (g_strcmp0(info->auth_method, "oauth2") == 0) {
             auth_method = info->auth_method;
@@ -158,8 +154,6 @@ static void account_info_notify(AccountInfo *info, GError *error) {
             g_ptr_array_add(auth_data_keys, "Secret");
             g_ptr_array_add(auth_data_values, user_name);
             g_ptr_array_add(auth_data_values, secret);
-
-            /* TODO: Handle special data for imap accounts */
         }
     } else if (error != NULL) {
         trace("Error occured during authentication: %s\n", error->message);
@@ -174,7 +168,7 @@ static void account_info_notify(AccountInfo *info, GError *error) {
                             service_name,
                             error,
                             info->enabled,
-                            (const char *) auth_method,
+                            (const char *)auth_method,
                             (const char **)auth_data_keys->pdata,
                             (const char **)auth_data_values->pdata,
                             auth_data_values->len,
