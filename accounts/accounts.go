@@ -95,7 +95,7 @@ func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char,
 		data.Enabled = true
 	}
 	if cAuthDataKeys != nil && cAuthDataValues != nil && cAuthDataLength > 0 {
-		// Turn the c arrays of *char to Go slices of *C.char
+		// Turn the c arrays of *char into Go slices of *C.char
 		keysHdr := reflect.SliceHeader {
 			Data: uintptr(unsafe.Pointer(cAuthDataKeys)),
 			Len:  int(cAuthDataLength),

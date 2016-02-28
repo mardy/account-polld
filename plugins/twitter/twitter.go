@@ -18,7 +18,6 @@ package twitter
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -201,7 +200,7 @@ func (p *twitterPlugin) consolidateDirectMessages(pushMsg []*plugins.PushMessage
 
 func (p *twitterPlugin) Poll(authData *accounts.AuthData) (batches []*plugins.PushMessageBatch, err error) {
 	if authData.Method != "oauth2" {
-		return nil, errors.New("passed auth data is not of type 'oauth2'")
+		return nil, fmt.Errorf("twitter plugin: passed auth data for account with id %d is not of type 'oauth2'", accountId)
 	}
 
 	url := "statuses/mentions_timeline.json"
