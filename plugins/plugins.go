@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 
 	"launchpad.net/account-polld/accounts"
 	"launchpad.net/go-xdg/v0"
@@ -60,7 +61,7 @@ func NewStandardPushMessage(summary, body, action, icon string, epoch int64) *Pu
 		Notification: Notification{
 			Card: &Card{
 				Summary:   summary,
-				Body:      body,
+				Body:      strings.TrimSpace(body),
 				Actions:   []string{action},
 				Icon:      icon,
 				Timestamp: epoch,
