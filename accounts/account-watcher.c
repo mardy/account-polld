@@ -14,6 +14,7 @@
  with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <stdio.h>
+#include <string.h>
 
 #include <glib.h>
 #include <libaccounts-glib/accounts-glib.h>
@@ -50,6 +51,7 @@ struct _AccountInfo {
     SignonAuthSession *session;
     GVariant *auth_params;
     GVariant *session_data;
+    gchar *auth_method;
 
     gulong enabled_signal_id;
     AgAccountId account_id;
@@ -83,31 +85,82 @@ static void account_info_free(AccountInfo *info) {
         g_object_unref(info->account_service);
         info->account_service = NULL;
     }
+    if (info->auth_method) {
+        g_free(info->auth_method);
+    }
     g_free(info);
 }
 
 static void account_info_notify(AccountInfo *info, GError *error) {
     AgService *service = ag_account_service_get_service(info->account_service);
-    const char *service_name = ag_service_get_name(service);
-    char *client_id = NULL;
-    char *client_secret = NULL;
-    char *access_token = NULL;
-    char *token_secret = NULL;
 
-    if (info->auth_params != NULL) {
-        /* Look up OAuth 2 parameters, falling back to OAuth 1 names */
-        g_variant_lookup(info->auth_params, "ClientId", "&s", &client_id);
-        g_variant_lookup(info->auth_params, "ClientSecret", "&s", &client_secret);
-        if (client_id == NULL) {
-            g_variant_lookup(info->auth_params, "ConsumerKey", "&s", &client_id);
+    const char *service_name = ag_service_get_name(service);
+    GPtrArray *auth_data_keys = g_ptr_array_sized_new(2);
+    GPtrArray *auth_data_values = g_ptr_array_sized_new(2);
+    char *auth_method = NULL;
+
+    if (error == NULL && info->auth_params != NULL && info->session_data != NULL) {
+        if (g_strcmp0(info->auth_method, "oauth2") == 0) {
+            auth_method = info->auth_method;
+
+            /* Look up the client id, the client secret and the access token */
+            char *client_id = NULL;
+            char *client_secret = NULL;
+            char *access_token = NULL;
+            g_variant_lookup(info->auth_params, "ClientId", "&s", &client_id);
+            g_variant_lookup(info->auth_params, "ClientSecret", "&s", &client_secret);
+            g_variant_lookup(info->session_data, "AccessToken", "&s", &access_token);
+
+            /* Build the result arrays */
+            g_ptr_array_add(auth_data_keys, "ClientId");
+            g_ptr_array_add(auth_data_keys, "ClientSecret");
+            g_ptr_array_add(auth_data_keys, "AccessToken");
+            g_ptr_array_add(auth_data_values, client_id);
+            g_ptr_array_add(auth_data_values, client_secret);
+            g_ptr_array_add(auth_data_values, access_token);
+        } else if (g_strcmp0(info->auth_method, "oauth1") == 0) {
+            auth_method = info->auth_method;
+
+            /* Look up the consumer key, the consumer secret, the access token and the token secret */
+            char *consumer_key = NULL;
+            char *consumer_secret = NULL;
+            char *access_token = NULL;
+            char *token_secret = NULL;
+            g_variant_lookup(info->auth_params, "ConsumerKey", "&s", &consumer_key);
+            g_variant_lookup(info->auth_params, "ConsumerSecret", "&s", &consumer_secret);
+            g_variant_lookup(info->session_data, "AccessToken", "&s", &access_token);
+            g_variant_lookup(info->session_data, "TokenSecret", "&s", &token_secret);
+
+            /* Build the result array */
+            g_ptr_array_add(auth_data_keys, "ConsumerKey");
+            g_ptr_array_add(auth_data_keys, "ConsumerSecret");
+            g_ptr_array_add(auth_data_keys, "AccessToken");
+            g_ptr_array_add(auth_data_keys, "TokenSecret");
+            g_ptr_array_add(auth_data_values, consumer_key);
+            g_ptr_array_add(auth_data_values, consumer_secret);
+            g_ptr_array_add(auth_data_values, access_token);
+            g_ptr_array_add(auth_data_values, token_secret);
+        } else if (g_strcmp0(info->auth_method, "password") == 0) {
+            auth_method = info->auth_method;
+
+            /* Look up the user name and the secret */
+            char *user_name = NULL;
+            char *secret = NULL;
+            g_variant_lookup(info->session_data, "UserName", "&s", &user_name);
+            g_variant_lookup(info->session_data, "Secret", "&s", &secret);
+
+            /* Build the result array */
+            g_ptr_array_add(auth_data_keys, "UserName");
+            g_ptr_array_add(auth_data_keys, "Secret");
+            g_ptr_array_add(auth_data_values, user_name);
+            g_ptr_array_add(auth_data_values, secret);
         }
-        if (client_secret == NULL) {
-            g_variant_lookup(info->auth_params, "ConsumerSecret", "&s", &client_secret);
-        }
-    }
-    if (info->session_data != NULL) {
-        g_variant_lookup(info->session_data, "AccessToken", "&s", &access_token);
-        g_variant_lookup(info->session_data, "TokenSecret", "&s", &token_secret);
+    } else if (error != NULL) {
+        trace("Error occured during authentication: %s\n", error->message);
+    } else if (info->auth_params == NULL) {
+        trace("Error: auth params NULL");
+    } else if (info->session_data == NULL) {
+        trace("Error: session data NULL");
     }
 
     info->watcher->callback(info->watcher,
@@ -115,11 +168,14 @@ static void account_info_notify(AccountInfo *info, GError *error) {
                             service_name,
                             error,
                             info->enabled,
-                            client_id,
-                            client_secret,
-                            access_token,
-                            token_secret,
+                            (const char *) auth_method,
+                            (const char **)auth_data_keys->pdata,
+                            (const char **)auth_data_values->pdata,
+                            auth_data_values->len,
                             info->watcher->user_data);
+
+    g_ptr_array_free(auth_data_keys, FALSE);
+    g_ptr_array_free(auth_data_values, FALSE);
 }
 
 static void account_info_login_cb(GObject *source, GAsyncResult *result, void *user_data) {
@@ -144,9 +200,10 @@ static void account_info_login(AccountInfo *info) {
     AgAuthData *auth_data = ag_account_service_get_auth_data(info->account_service);
     GError *error = NULL;
     trace("Starting authentication session for account %u\n", info->account_id);
+    info->auth_method = g_strdup(ag_auth_data_get_method(auth_data));
     info->session = signon_auth_session_new(
         ag_auth_data_get_credentials_id(auth_data),
-        ag_auth_data_get_method(auth_data), &error);
+        info->auth_method, &error);
     if (error != NULL) {
         trace("Could not set up auth session: %s\n", error->message);
         account_info_notify(info, error);

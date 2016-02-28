@@ -27,6 +27,7 @@ AccountWatcher *watch_for_service_type(const char *service_type);
 import "C"
 import (
 	"errors"
+	"reflect"
 	"sync"
 	"unsafe"
 )
@@ -41,11 +42,8 @@ type AuthData struct {
 	ServiceName string
 	Error       error
 	Enabled     bool
-
-	ClientId     string
-	ClientSecret string
-	AccessToken  string
-	TokenSecret  string
+	Method      string
+	Data        map[string]string
 }
 
 var (
@@ -76,7 +74,7 @@ func (w *Watcher) Refresh(accountId uint) {
 }
 
 //export authCallback
-func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char, error *C.GError, enabled C.int, clientId, clientSecret, accessToken, tokenSecret *C.char, userData unsafe.Pointer) {
+func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char, error *C.GError, enabled C.int, cAuthMethod *C.char, cAuthDataKeys **C.char, cAuthDataValues **C.char, cAuthDataLength C.uint, userData unsafe.Pointer) {
 	// Ideally the first argument would be of type
 	// *C.AccountWatcher, but that fails with Go 1.2.
 	authChannelsLock.Lock()
@@ -96,17 +94,28 @@ func authCallback(watcher unsafe.Pointer, accountId C.uint, serviceName *C.char,
 	if enabled != 0 {
 		data.Enabled = true
 	}
-	if clientId != nil {
-		data.ClientId = C.GoString(clientId)
-	}
-	if clientSecret != nil {
-		data.ClientSecret = C.GoString(clientSecret)
-	}
-	if accessToken != nil {
-		data.AccessToken = C.GoString(accessToken)
-	}
-	if tokenSecret != nil {
-		data.TokenSecret = C.GoString(tokenSecret)
+	if cAuthDataKeys != nil && cAuthDataValues != nil && cAuthDataLength > 0 {
+		// Turn the c arrays of *char to Go slices of *C.char
+		keysHdr := reflect.SliceHeader {
+			Data: uintptr(unsafe.Pointer(cAuthDataKeys)),
+			Len:  int(cAuthDataLength),
+			Cap:  int(cAuthDataLength),
+		}
+		authDataKeysSlice := *(*[]*C.char)(unsafe.Pointer(&keysHdr))
+
+		valuesHdr := reflect.SliceHeader {
+			Data: uintptr(unsafe.Pointer(cAuthDataValues)),
+			Len:  int(cAuthDataLength),
+			Cap:  int(cAuthDataLength),
+		}
+		authDataValuesSlice := *(*[]*C.char)(unsafe.Pointer(&valuesHdr))
+
+		data.Data = make(map[string]string)
+		data.Method = C.GoString(cAuthMethod)
+
+		for i := 0; i < int(cAuthDataLength); i++ {
+			data.Data[C.GoString(authDataKeysSlice[i])] = C.GoString(authDataValuesSlice[i])
+		}
 	}
 	ch <- data
 }
