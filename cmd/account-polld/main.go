@@ -147,7 +147,7 @@ func handleWatcherData(wg *sync.WaitGroup, watcher *accounts.Watcher, postWatch 
 		}
 	} else if data.Enabled {
 		var plugin plugins.Plugin = nil
-		if serviceType == SERVICETYPE_WEBAPPS { // Allows other service types to be added here in the fu
+		if serviceType == SERVICETYPE_WEBAPPS { // Allows other service types to be added here in the future
 			switch data.ServiceName {
 			case SERVICENAME_GMAIL:
 				log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
