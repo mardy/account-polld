@@ -130,7 +130,7 @@ L:
 				case SERVICENAME_TWITTER:
 					// This is just stubbed until the plugin exists.
 					log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
-					plugin = twitter.New()
+					plugin = twitter.New(data.AccountId)
 				default:
 					log.Println("Unhandled account with id", data.AccountId, "for", data.ServiceName)
 					continue L
