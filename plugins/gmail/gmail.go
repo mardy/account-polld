@@ -185,7 +185,7 @@ func (p *GmailPlugin) createNotifications(messages []message) ([]*plugins.PushMe
 		}
 
 		if emailAddress != nil {
-			avatarPath = qtcontact.GetAvatar(emailAddress.Address) // TODO: Blocking when displaying a notification on startup (LP: #1498214)
+			avatarPath = qtcontact.GetAvatar(emailAddress.Address)
 			// If icon path starts with a path separator, assume local file path,
 			// encode it and prepend file scheme defined in RFC 1738.
 			if strings.HasPrefix(avatarPath, string(os.PathSeparator)) {
