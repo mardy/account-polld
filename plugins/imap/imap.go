@@ -24,7 +24,7 @@ import (
 	"math"
 	"net/mail"
 	"regexp"
-	"sort"
+	// "sort"
 	"strconv"
 	"strings"
 	"time"
@@ -40,12 +40,10 @@ import (
 const (
 	imapMessageDispatchUri = "imap://%d/uid/%d" // TODO: Proper URIs
 	imapOverflowDispatchUri = "imap://%d"
-	// this means 2 individual messages + 1 bundled notification.
+	// this means 10 individual messages + 1 bundled notification.
 	individualNotificationsLimit = 10
 	pluginName                   = "imap"
 )
-
-type reportedIdMap map[string]time.Time
 
 // Type for sorting an []uint32 slice
 type Uint32Slice []uint32
@@ -57,17 +55,17 @@ func (p Uint32Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 // timeDelta defines how old messages can be to be reported.
 var timeDelta = time.Duration(time.Hour * 24)
 
-// trackDelta defines how old messages can be before removed from tracking
-var trackDelta = time.Duration(time.Hour * 24 * 7)
-
 type ImapPlugin struct {
-	// the app id of the app to display notifications for
-	appId       string
-	// reportedIds holds the messages that have already been notified. This
-	// approach is taken against timestamps as it avoids needing to call
-	// get on the message.
-	reportedIds reportedIdMap
-	accountId   uint
+	accountId    uint
+	// the app id to display notifications for
+	appId        string
+	serverStatus ServerStatus
+	firstPoll    bool
+}
+
+type ServerStatus struct { // TODO: Rename to inbox status
+	UidNext     uint32
+	UidValidity uint32
 }
 
 type Message struct {
@@ -78,44 +76,31 @@ type Message struct {
 	message string
 }
 
-func idsFromPersist(accountId uint) (ids reportedIdMap, err error) {
-	err = plugins.FromPersist(pluginName, accountId, &ids)
+func serverStatusFromPersist(accountId uint) (status *ServerStatus, err error) {
+	err = plugins.FromPersist(pluginName, accountId, &status)
 	if err != nil {
 		return nil, err
 	}
-	// Discard old ids
-	timestamp := time.Now()
-	for k, v := range ids {
-		delta := timestamp.Sub(v)
-		if delta > trackDelta {
-			log.Print("imap plugin ", accountId, ": deleting ", k, " as ", delta, " is greater than ", trackDelta)
-			delete(ids, k)
-		}
-	}
-	return ids, nil
+	return status, nil
 }
 
-func (ids reportedIdMap) persist(accountId uint) (err error) {
-	err = plugins.Persist(pluginName, accountId, ids)
+func (p *ImapPlugin) persistServerStatus() (err error) {
+	err = plugins.Persist(pluginName, p.accountId, p.serverStatus)
 	if err != nil {
-		log.Print("imap plugin ", accountId, ": failed to save state: ", err)
+		log.Print("imap plugin ", p.accountId, ": failed to save state: ", err)
 	}
-	return nil
-}
-
-func (p *ImapPlugin) reported(id string) bool {
-	_, ok := p.reportedIds[id]
-	return ok
+	return err
 }
 
 func New(appId string, accountId uint) *ImapPlugin {
-	reportedIds, err := idsFromPersist(accountId)
+	serverStatus, err := serverStatusFromPersist(accountId)
 	if err != nil {
 		log.Print("imap plugin ", accountId, ": cannot load previous state from storage: ", err)
+		return &ImapPlugin{appId: appId, accountId: accountId, firstPoll: true}
 	} else {
 		log.Print("imap plugin ", accountId, ": last state loaded from storage")
 	}
-	return &ImapPlugin{appId: appId, reportedIds: reportedIds, accountId: accountId}
+	return &ImapPlugin{appId: appId, accountId: accountId, serverStatus: *serverStatus, firstPoll: false}
 }
 
 func (p *ImapPlugin) ApplicationId() plugins.ApplicationId {
@@ -177,30 +162,63 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		return nil, err
 	}
 
-	// Select the inbox
-	_, err = c.Select("INBOX", true)
+	// Get the UIDNEXT and UIDVALIDITY values of the user's inbox
+	cmd, err := goimap.Wait(c.Status("INBOX"))
 	if err != nil {
-		log.Print("imap plugin ", p.accountId, ": failed to select the inbox: ", err)
-		return nil, err
-	}
-	c.Data = nil
-
-	// Get all uids of unseen mails
-	cmd, err := goimap.Wait(c.UIDSearch("1:* UNSEEN")) // TODO: Limit search to the most recent messages, check uid validity
-	if err != nil {
-		log.Print("imap plugin ", p.accountId, ": failed to get unseen messages: ", err)
+		log.Print("imap plugin ", p.accountId, ": failed to get mailbox status: ", err)
 		return nil, err
 	}
 
-	// Filter for those unread messages for which we haven't requested information from the server yet
-	unseenUids := cmd.Data[0].SearchResults()
-	newUids, uidsToReport := p.uidFilter(unseenUids)
+	mailboxStatus := cmd.Data[0].MailboxStatus()
 
+	// Check if the UIDVALIDITY and UIDNEXT values have changed
+	uidValidityChanged := mailboxStatus.UIDValidity != p.serverStatus.UidValidity
+	uidNextChanged := mailboxStatus.UIDNext != p.serverStatus.UidNext
+
+	searchCommand := ""
+
+	// Check if there are unred emails
+	if mailboxStatus.Unseen > 0 {
+		// If UIDVALIDITY has changed or this is the first poll, fetch all unread emails
+		// Otherwise, if UIDNEXT has changed, i.e. a new message has arrived, fetch all new unread emails
+		if p.firstPoll || uidValidityChanged {
+			searchCommand = "1:* UNSEEN"
+		} else if uidNextChanged {
+			searchCommand = strconv.Itoa(int(p.serverStatus.UidNext)) + ":* UNSEEN"
+		}
+	}
+
+	// Update our stored UIDVALIDITY and UIDNEXT values and store them on disk
+	p.serverStatus.UidValidity = mailboxStatus.UIDValidity
+	p.serverStatus.UidNext = mailboxStatus.UIDNext
+	p.persistServerStatus()
+	p.firstPoll = false
+
+	// Create a slice which we are going to store our messages in
 	messages := []*Message{}
 
-	if len(newUids) > 0 {
+	// Only fetch messages if there are new ones on the server
+	if searchCommand != "" {
+		// Select the inbox
+		_, err = c.Select("INBOX", true)
+		if err != nil {
+			log.Print("imap plugin ", p.accountId, ": failed to select the inbox: ", err)
+			return nil, err
+		}
+		c.Data = nil
+
+		// Get all uids of unseen mails
+		cmd, err := goimap.Wait(c.UIDSearch(searchCommand))
+		if err != nil {
+			log.Print("imap plugin ", p.accountId, ": failed to get unseen messages: ", err)
+			return nil, err
+		}
+
+		// Filter for those unread messages for which we haven't requested information from the server yet
+		unseenUids := cmd.Data[0].SearchResults() // TODO: Sort using sort.Sort(Uint32Slice(...))
+
 		set, _ := goimap.NewSeqSet("")
-		set.AddNum(newUids...)
+		set.AddNum(unseenUids...)
 		cmd, err = c.UIDFetch(set, "RFC822", "UID", "BODY[]")
 		if err != nil {
 			log.Print("imap plugin ", p.accountId, ": failed fetch messages by uids: ", err)
@@ -247,10 +265,6 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 			cmd.Data = nil
 			c.Data = nil
 		}
-
-		// Report uids after polling succeeded
-		p.reportedIds = uidsToReport
-		p.reportedIds.persist(p.accountId)
 	}
 
 	notif := p.createNotifications(messages)
@@ -318,21 +332,4 @@ func (p *ImapPlugin) handleOverflow(pushMsg []*plugins.PushMessage) *plugins.Pus
 	epoch := time.Now().Unix()
 
 	return plugins.NewStandardPushMessage(summary, body, action, "", epoch)
-}
-
-// uidFilter filters a list of message uids for those which have not been reported yet.
-// It also returns a list of messages which need to be reported and sorts its output.
-func (p *ImapPlugin) uidFilter(uids []uint32) (newUids []uint32, uidsToReport reportedIdMap) {
-	sort.Sort(Uint32Slice(uids))
-	uidsToReport = make(reportedIdMap)
-
-	for _, uid := range uids {
-		uidString := strconv.FormatUint(uint64(uid), 10)
-		if !p.reported(uidString) {
-			newUids = append(newUids, uid)
-		}
-		uidsToReport[uidString] = time.Now()
-	}
-
-	return newUids, uidsToReport
 }
