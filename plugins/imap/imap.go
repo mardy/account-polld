@@ -43,6 +43,7 @@ const (
 	// this means 10 individual messages + 1 bundled notification.
 	individualNotificationsLimit = 10
 	pluginName                   = "imap"
+	inboxName                    = "INBOX"
 )
 
 // Type for sorting an []uint32 slice
@@ -163,7 +164,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	}
 
 	// Get the UIDNEXT and UIDVALIDITY values of the user's inbox
-	cmd, err := goimap.Wait(c.Status("INBOX"))
+	cmd, err := goimap.Wait(c.Status(inboxName))
 	if err != nil {
 		log.Print("imap plugin ", p.accountId, ": failed to get mailbox status: ", err)
 		return nil, err
@@ -199,7 +200,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	// Only fetch messages if there are new ones on the server
 	if searchCommand != "" {
 		// Select the inbox
-		_, err = c.Select("INBOX", true) // TODO: Constant
+		_, err = c.Select(inboxName, true)
 		if err != nil {
 			log.Print("imap plugin ", p.accountId, ": failed to select the inbox: ", err)
 			return nil, err
