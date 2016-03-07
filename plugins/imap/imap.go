@@ -181,11 +181,11 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	if mailboxStatus.Unseen > 0 {
 		// If UIDVALIDITY has changed or this is the first poll, fetch all unread emails
 		// Otherwise, if UIDNEXT has changed, i.e. a new message has arrived, fetch all new unread emails
-		if p.firstPoll || uidValidityChanged {
+		if true || p.firstPoll || uidValidityChanged {
 			searchCommand = "1:* UNSEEN"
 		} else if uidNextChanged {
 			log.Print("Old UIDNEXT: ", p.inboxStatus.UidNext)
-			searchCommand = strconv.Itoa(int(p.inboxStatus.UidNext)) + ":*" //" UNSEEN" // TODO: This does not work when two messages have arrived since the last poll
+			searchCommand = strconv.Itoa(int(p.inboxStatus.UidNext)) + ":* UNSEEN" // TODO: This does not work when two messages have arrived since the last poll
 			log.Print("Search command: ", searchCommand)
 		}
 	}
