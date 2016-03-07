@@ -24,7 +24,7 @@ import (
 	"math"
 	"net/mail"
 	"regexp"
-	// "sort"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -52,7 +52,7 @@ func (p Uint32Slice) Len() int           { return len(p) }
 func (p Uint32Slice) Less(i, j int) bool { return p[i] < p[j] }
 func (p Uint32Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-// timeDelta defines how old messages can be to be reported.
+// timeDelta defines how old messages may be to be shown to the user
 var timeDelta = time.Duration(time.Hour * 24)
 
 type ImapPlugin struct {
@@ -168,7 +168,6 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		log.Print("imap plugin ", p.accountId, ": failed to get mailbox status: ", err)
 		return nil, err
 	}
-
 	mailboxStatus := cmd.Data[0].MailboxStatus()
 
 	// Check if the UIDVALIDITY and UIDNEXT values have changed
@@ -200,23 +199,25 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	// Only fetch messages if there are new ones on the server
 	if searchCommand != "" {
 		// Select the inbox
-		_, err = c.Select("INBOX", true)
+		_, err = c.Select("INBOX", true) // TODO: Constant
 		if err != nil {
 			log.Print("imap plugin ", p.accountId, ": failed to select the inbox: ", err)
 			return nil, err
 		}
 		c.Data = nil
 
-		// Get all uids of unseen mails
+		// Get the uids of all new unread messages
 		cmd, err := goimap.Wait(c.UIDSearch(searchCommand))
 		if err != nil {
 			log.Print("imap plugin ", p.accountId, ": failed to get unseen messages: ", err)
 			return nil, err
 		}
+		unseenUids := cmd.Data[0].SearchResults()
 
-		// Filter for those unread messages for which we haven't requested information from the server yet
-		unseenUids := cmd.Data[0].SearchResults() // TODO: Sort using sort.Sort(Uint32Slice(...))
+		// Sort the uids (ascending)
+		sort.Sort(Uint32Slice(unseenUids))
 
+		// Fetch the bodies of these messages
 		set, _ := goimap.NewSeqSet("")
 		set.AddNum(unseenUids...)
 		cmd, err = c.UIDFetch(set, "RFC822", "UID", "BODY[]")
@@ -232,11 +233,14 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 
 			// Process command data
 			for _, rsp := range cmd.Data {
+				// Read the message
 				msgInfo := rsp.MessageInfo()
 				body := goimap.AsBytes(msgInfo.Attrs["BODY[]"])
 				if msg, err := mail.ReadMessage(bytes.NewReader(body)); msg != nil {
+					// Get the sender's address
 					from := goimap.AsString(msg.Header.Get("From"))
 
+					// Get the date of the message
 					date, err := msg.Header.Date()
 					if err != nil {
 						log.Print("imap plugin ", p.accountId, ": failed to get date from message header: ", err)
@@ -251,6 +255,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 						message = mimeBody.Text
 					}
 
+					// Build our Message object and add it to our slice
 					messages = append(messages, &Message{
 						uid:     goimap.AsNumber(msgInfo.Attrs["UID"]),
 						date:    date,
