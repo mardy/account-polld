@@ -186,6 +186,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		} else if uidNextChanged {
 			log.Print("Old UIDNEXT: ", p.inboxStatus.UidNext)
 			searchCommand = strconv.Itoa(int(p.inboxStatus.UidNext)) + ":* UNSEEN" // TODO: This does not work when two messages have arrived since the last poll
+			log.Print("Search command: ", searchCommand)
 		}
 	}
 
