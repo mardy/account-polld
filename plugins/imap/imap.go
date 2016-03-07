@@ -56,14 +56,14 @@ func (p Uint32Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 var timeDelta = time.Duration(time.Hour * 24)
 
 type ImapPlugin struct {
-	accountId    uint
+	accountId   uint
 	// the app id to display notifications for
-	appId        string
-	serverStatus ServerStatus
-	firstPoll    bool
+	appId       string
+	inboxStatus InboxStatus
+	firstPoll   bool
 }
 
-type ServerStatus struct { // TODO: Rename to inbox status
+type InboxStatus struct {
 	UidNext     uint32
 	UidValidity uint32
 }
@@ -76,7 +76,7 @@ type Message struct {
 	message string
 }
 
-func serverStatusFromPersist(accountId uint) (status *ServerStatus, err error) {
+func inboxStatusFromPersist(accountId uint) (status *InboxStatus, err error) {
 	err = plugins.FromPersist(pluginName, accountId, &status)
 	if err != nil {
 		return nil, err
@@ -84,8 +84,8 @@ func serverStatusFromPersist(accountId uint) (status *ServerStatus, err error) {
 	return status, nil
 }
 
-func (p *ImapPlugin) persistServerStatus() (err error) {
-	err = plugins.Persist(pluginName, p.accountId, p.serverStatus)
+func (p *ImapPlugin) persistInboxStatus() (err error) {
+	err = plugins.Persist(pluginName, p.accountId, p.inboxStatus)
 	if err != nil {
 		log.Print("imap plugin ", p.accountId, ": failed to save state: ", err)
 	}
@@ -93,14 +93,14 @@ func (p *ImapPlugin) persistServerStatus() (err error) {
 }
 
 func New(appId string, accountId uint) *ImapPlugin {
-	serverStatus, err := serverStatusFromPersist(accountId)
+	inboxStatus, err := inboxStatusFromPersist(accountId)
 	if err != nil {
 		log.Print("imap plugin ", accountId, ": cannot load previous state from storage: ", err)
 		return &ImapPlugin{appId: appId, accountId: accountId, firstPoll: true}
 	} else {
 		log.Print("imap plugin ", accountId, ": last state loaded from storage")
 	}
-	return &ImapPlugin{appId: appId, accountId: accountId, serverStatus: *serverStatus, firstPoll: false}
+	return &ImapPlugin{appId: appId, accountId: accountId, inboxStatus: *inboxStatus, firstPoll: false}
 }
 
 func (p *ImapPlugin) ApplicationId() plugins.ApplicationId {
@@ -172,8 +172,8 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 	mailboxStatus := cmd.Data[0].MailboxStatus()
 
 	// Check if the UIDVALIDITY and UIDNEXT values have changed
-	uidValidityChanged := mailboxStatus.UIDValidity != p.serverStatus.UidValidity
-	uidNextChanged := mailboxStatus.UIDNext != p.serverStatus.UidNext
+	uidValidityChanged := mailboxStatus.UIDValidity != p.inboxStatus.UidValidity
+	uidNextChanged := mailboxStatus.UIDNext != p.inboxStatus.UidNext
 
 	searchCommand := ""
 
@@ -184,14 +184,14 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		if p.firstPoll || uidValidityChanged {
 			searchCommand = "1:* UNSEEN"
 		} else if uidNextChanged {
-			searchCommand = strconv.Itoa(int(p.serverStatus.UidNext)) + ":* UNSEEN"
+			searchCommand = strconv.Itoa(int(p.inboxStatus.UidNext)) + ":* UNSEEN"
 		}
 	}
 
 	// Update our stored UIDVALIDITY and UIDNEXT values and store them on disk
-	p.serverStatus.UidValidity = mailboxStatus.UIDValidity
-	p.serverStatus.UidNext = mailboxStatus.UIDNext
-	p.persistServerStatus()
+	p.inboxStatus.UidValidity = mailboxStatus.UIDValidity
+	p.inboxStatus.UidNext = mailboxStatus.UIDNext
+	p.persistInboxStatus()
 	p.firstPoll = false
 
 	// Create a slice which we are going to store our messages in
