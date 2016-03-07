@@ -184,9 +184,7 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		if p.firstPoll || uidValidityChanged {
 			searchCommand = "UID 1:* UNSEEN"
 		} else if uidNextChanged {
-			log.Print("Old UIDNEXT: ", p.inboxStatus.UidNext)
-			searchCommand = "UID " + strconv.Itoa(int(p.inboxStatus.UidNext)) + ":* UNSEEN" // TODO: This does not work when two messages have arrived since the last poll
-			log.Print("Search command: ", searchCommand)
+			searchCommand = "UID " + strconv.Itoa(int(p.inboxStatus.UidNext)) + ":* UNSEEN"
 		}
 	}
 
@@ -216,10 +214,6 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 			return nil, err
 		}
 		unseenUids := cmd.Data[0].SearchResults()
-
-		log.Print(fmt.Sprintf("cmd.Data length: %v", len(cmd.Data)))
-		log.Print(fmt.Sprintf("Unseen length: %v", len(unseenUids)))
-		log.Print(fmt.Sprintf("Unseen: %v", unseenUids))
 
 		// Sort the uids (ascending)
 		sort.Sort(Uint32Slice(unseenUids))
