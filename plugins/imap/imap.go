@@ -216,7 +216,8 @@ func (p *ImapPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMessageBa
 		}
 		unseenUids := cmd.Data[0].SearchResults()
 
-		log.Print(fmt.Sprintf("Unseen: %#v", unseenUids))
+		log.Print(fmt.Sprintf("cmd.Data length: %v", len(cmd.Data)))
+		log.Print(fmt.Sprintf("Unseen: %v", unseenUids))
 
 		// Sort the uids (ascending)
 		sort.Sort(Uint32Slice(unseenUids))
