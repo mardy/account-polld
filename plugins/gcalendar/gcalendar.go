@@ -32,7 +32,7 @@ const (
 	pluginName = "gcalendar"
 )
 
-var baseUrl, _ = url.Parse("https://www.googleapis.com/calendar/v3/calendars/primary/")
+var baseUrl, _ = url.Parse("https://www.googleapis.com/calendar/v3/calendars/")
 
 type GCalendarPlugin struct {
 	accountId uint
@@ -52,39 +52,66 @@ func (p *GCalendarPlugin) Poll(authData *accounts.AuthData) ([]*plugins.PushMess
 		authData.AccessToken = token
 	}
 
+	log.Print("Check calendar changes for account:", p.accountId)
+
 	syncMonitor := NewSyncMonitor()
 	if syncMonitor == nil {
 		log.Print("Sync monitor not available yet.")
 		return nil, nil
 	}
 
-	lastSyncDate, err := syncMonitor.LastSyncDate(p.accountId, "calendar")
+	state, err := syncMonitor.State()
 	if err != nil {
-		log.Print("calendar plugin ", p.accountId, ": cannot load previous sync date: ", err, ". Try next time.")
+		log.Print("Fail to retrieve sync monitor state ", err)
 		return nil, nil
-	} else {
-		log.Print("calendar plugin ", p.accountId, ": last sync date: ", lastSyncDate)
+	}
+	if state != "idle" {
+		log.Print("Sync monitor is not on 'idle' state, try later!")
+		return nil, nil
 	}
 
-	resp, err := p.requestChanges(authData.AccessToken, lastSyncDate)
+	calendars, err := syncMonitor.ListCalendarsByAccount(p.accountId)
 	if err != nil {
-		return nil, err
+		log.Print("calendar plugin ", p.accountId, ": cannot load calendars: ", err)
+		return nil, nil
 	}
 
-	messages, err := p.parseChangesResponse(resp)
-	if err != nil {
-		return nil, err
+	var calendarsToSync []string
+	log.Print("Number of calendars for account:", p.accountId, " size:", len(calendars))
+
+	for _, calendar := range calendars {
+		lastSyncDate, err := syncMonitor.LastSyncDate(p.accountId, calendar)
+		if err != nil {
+			log.Print("calendar plugin ", p.accountId, ": cannot load previous sync date: ", err, ". Try next time.")
+			continue
+		} else {
+			log.Print("calendar plugin ", p.accountId, ": last sync date: ", lastSyncDate)
+		}
+
+		resp, err := p.requestChanges(authData.AccessToken, calendar, lastSyncDate)
+		if err != nil {
+			continue
+		}
+
+		messages, err := p.parseChangesResponse(resp)
+		if err != nil {
+			continue
+		}
+
+		if len(messages) > 0 {
+			// Update last sync date
+			calendarsToSync = append(calendarsToSync, calendar)
+		} else {
+			log.Print("Found no calendar updates for account: ", p.accountId, " calendar: ", calendar)
+		}
 	}
 
-	if len(messages) > 0 {
-		// Update last sync date
+	if len(calendarsToSync) > 0 {
 		log.Print("Request calendar sync")
-		err = syncMonitor.SyncAccount(p.accountId, "calendar")
+		err = syncMonitor.SyncAccount(p.accountId, "calendar", calendarsToSync)
 		if err != nil {
 			log.Print("Fail to start calendar sync ", p.accountId, " error: ", err)
 		}
-	} else {
-		log.Print("Found no calendar updates for account: ", p.accountId)
 	}
 
 	return nil, nil
@@ -117,13 +144,13 @@ func (p *GCalendarPlugin) parseChangesResponse(resp *http.Response) ([]event, er
 	return events.Events, nil
 }
 
-func (p *GCalendarPlugin) requestChanges(accessToken string, lastSyncDate string) (*http.Response, error) {
-	u, err := baseUrl.Parse("events")
+func (p *GCalendarPlugin) requestChanges(accessToken string, calendar string, lastSyncDate string) (*http.Response, error) {
+	u, err := baseUrl.Parse(calendar + "/events")
 	if err != nil {
 		return nil, err
 	}
 
-	//GET https://www.googleapis.com/calendar/v3/calendars/primary/events?showDeleted=true&singleEvents=true&updatedMin=2016-04-06T10%3A00%3A00.00Z&fields=description%2Citems(description%2Cetag%2Csummary)&key={YOUR_API_KEY}
+	//GET https://www.googleapis.com/calendar/v3/calendars/<calendar>/events?showDeleted=true&singleEvents=true&updatedMin=2016-04-06T10%3A00%3A00.00Z&fields=description%2Citems(description%2Cetag%2Csummary)&key={YOUR_API_KEY}
 	query := baseUrl.Query()
 	query.Add("showDeleted", "true")
 	query.Add("singleEvents", "true")
@@ -139,6 +166,7 @@ func (p *GCalendarPlugin) requestChanges(accessToken string, lastSyncDate string
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
+	log.Print("request url: ", u.String())
 
 	return http.DefaultClient.Do(req)
 }
