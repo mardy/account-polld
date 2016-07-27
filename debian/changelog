@@ -1,3 +1,9 @@
+account-polld (0.1+16.10.20160727.1-0ubuntu1) yakkety; urgency=medium
+
+  * Add Dekko GMail plugin (LP: #1421923)
+
+ -- Alberto Mardegan <mardy@users.sourceforge.net>  Wed, 27 Jul 2016 13:39:29 +0000
+
 account-polld (0.1+16.10.20160719.2-0ubuntu1) yakkety; urgency=medium
 
   [ Renato Araujo Oliveira Filho ]
