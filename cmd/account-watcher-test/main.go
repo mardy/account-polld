@@ -2,14 +2,12 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"launchpad.net/account-polld/accounts"
 )
 
 func main() {
-	// Expects a list of service names as command line arguments
-	for data := range accounts.NewWatcher(os.Args[1]).C {
+	for data := range accounts.NewWatcher().C {
 		if data.Error != nil {
 			fmt.Println("Failed to authenticate account", data.AccountId, ":", data.Error)
 		} else {

@@ -1,6 +1,6 @@
 #include "_cgo_export.h"
 
-AccountWatcher *watch_for_service_type(const char *service_type) {
+AccountWatcher *watch() {
     /* Transfer service names to hash table */
     if (FALSE) {
         /* The Go callback doesn't quite match the
@@ -20,6 +20,6 @@ AccountWatcher *watch_for_service_type(const char *service_type) {
     }
 
     AccountWatcher *watcher = account_watcher_new(
-        service_type, (AccountEnabledCallback)authCallback, NULL);
+        (AccountEnabledCallback)authCallback, NULL);
     return watcher;
 }

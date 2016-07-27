@@ -31,12 +31,12 @@
 struct _AccountWatcher {
     AgManager *manager;
     /* A hash table of the enabled accounts we know of.
-     * Keys are account ID integers, and AccountInfo structs as values.
+     * Keys are "<accountId>/<serviceName>", and AccountInfo structs as values.
      */
     GHashTable *services;
 
-    gulong enabled_event_signal_id;
-    gulong account_deleted_signal_id;
+    /* List of supported services' IDs */
+    GSList *supported_services;
 
     AccountEnabledCallback callback;
     void *user_data;
@@ -51,9 +51,7 @@ struct _AccountInfo {
     GVariant *auth_params;
     GVariant *session_data;
 
-    gulong enabled_signal_id;
     AgAccountId account_id;
-    gboolean enabled; /* the last known state of the account */
 };
 
 static void account_info_clear_login(AccountInfo *info) {
@@ -74,11 +72,6 @@ static void account_info_clear_login(AccountInfo *info) {
 
 static void account_info_free(AccountInfo *info) {
     account_info_clear_login(info);
-    if (info->enabled_signal_id != 0) {
-        g_signal_handler_disconnect(
-            info->account_service, info->enabled_signal_id);
-    }
-    info->enabled_signal_id = 0;
     if (info->account_service) {
         g_object_unref(info->account_service);
         info->account_service = NULL;
@@ -116,7 +109,7 @@ static void account_info_notify(AccountInfo *info, GError *error) {
                             service_type,
                             service_name,
                             error,
-                            info->enabled,
+                            TRUE,
                             client_id,
                             client_secret,
                             access_token,
@@ -178,24 +171,6 @@ static void account_info_login(AccountInfo *info) {
     ag_auth_data_unref(auth_data);
 }
 
-static void account_info_enabled_cb(
-    AgAccountService *account_service, gboolean enabled, AccountInfo *info) {
-    trace("account_info_enabled_cb for %u, enabled=%d\n", info->account_id, enabled);
-    if (info->enabled == enabled) {
-        /* no change */
-        return;
-    }
-    info->enabled = enabled;
-
-    if (enabled) {
-        account_info_login(info);
-    } else {
-        account_info_clear_login(info);
-        // Send notification that account has been disabled */
-        account_info_notify(info, NULL);
-    }
-}
-
 static AccountInfo *account_info_new(AccountWatcher *watcher, AgAccountService *account_service) {
     AccountInfo *info = g_new0(AccountInfo, 1);
     info->watcher = watcher;
@@ -204,99 +179,105 @@ static AccountInfo *account_info_new(AccountWatcher *watcher, AgAccountService *
     AgAccount *account = ag_account_service_get_account(account_service);
     g_object_get(account, "id", &info->account_id, NULL);
 
-    info->enabled_signal_id = g_signal_connect(
-        account_service, "enabled",
-        G_CALLBACK(account_info_enabled_cb), info);
-    // Set initial state
-    account_info_enabled_cb(account_service, ag_account_service_get_enabled(account_service), info);
-
     return info;
 }
 
-static void account_watcher_enabled_event_cb(
-    AgManager *manager, AgAccountId account_id, AccountWatcher *watcher) {
-    trace("enabled-event for %u\n", account_id);
-    if (g_hash_table_contains(watcher->services, GUINT_TO_POINTER(account_id))) {
-        /* We are already tracking this account */
-        return;
-    }
-    AgAccount *account = ag_manager_get_account(manager, account_id);
-    if (account == NULL) {
-        /* There was a problem looking up the account */
-        return;
-    }
-    /* Since our AgManager is restricted to a particular service type,
-     * pick the first service for the account. */
-    GList *services = ag_account_list_services(account);
-    if (services != NULL) {
-        AgService *service = services->data;
-        AgAccountService *account_service = ag_account_service_new(
-            account, service);
-        AccountInfo *info = account_info_new(watcher, account_service);
-        g_object_unref(account_service);
-        g_hash_table_insert(watcher->services, GUINT_TO_POINTER(account_id), info);
-    }
-    ag_service_list_free(services);
-    g_object_unref(account);
-}
-
-static void account_watcher_account_deleted_cb(
-    AgManager *manager, AgAccountId account_id, AccountWatcher *watcher) {
-    trace("account-deleted for %u\n", account_id);
-    /* A disabled event should have been sent prior to this, so no
-     * need to send any notification. */
-    g_hash_table_remove(watcher->services, GUINT_TO_POINTER(account_id));
+static gboolean service_is_supported(AccountWatcher *watcher,
+                                     const char *service_id)
+{
+    GSList *node = g_slist_find_custom(watcher->supported_services,
+                                       service_id,
+                                       (GCompareFunc)g_strcmp0);
+    return node != NULL;
 }
 
 static gboolean account_watcher_setup(void *user_data) {
     AccountWatcher *watcher = (AccountWatcher *)user_data;
 
-    /* Track changes to accounts */
-    watcher->enabled_event_signal_id = g_signal_connect(
-        watcher->manager, "enabled-event",
-        G_CALLBACK(account_watcher_enabled_event_cb), watcher);
-    watcher->account_deleted_signal_id = g_signal_connect(
-        watcher->manager, "account-deleted",
-        G_CALLBACK(account_watcher_account_deleted_cb), watcher);
-
     /* Now check initial state */
-    GList *enabled_accounts = ag_manager_list(watcher->manager);
+    GList *enabled_accounts =
+        ag_manager_get_enabled_account_services(watcher->manager);
+    GList *old_services = g_hash_table_get_keys(watcher->services);
+
+    /* Update the services table */
     GList *l;
     for (l = enabled_accounts; l != NULL; l = l->next) {
-        AgAccountId account_id = GPOINTER_TO_UINT(l->data);
-        account_watcher_enabled_event_cb(watcher->manager, account_id, watcher);
+        AgAccountService *account_service = l->data;
+        AgAccountId id = ag_account_service_get_account(account_service)->id;
+        AgService *service = ag_account_service_get_service(account_service);
+        const char *service_id = ag_service_get_name(service);
+
+        if (!service_is_supported(watcher, service_id)) continue;
+
+        char *key = g_strdup_printf("%d/%s", id, service_id);
+
+        AccountInfo *info = g_hash_table_lookup(watcher->services, key);
+        if (info) {
+            GList *node = g_list_find_custom(old_services, key,
+                                             (GCompareFunc)g_strcmp0);
+            old_services = g_list_remove_link(old_services, node);
+            g_free(key);
+        } else {
+            trace("adding account %s\n", key);
+            info = account_info_new(watcher, account_service);
+            g_hash_table_insert(watcher->services, key, info);
+        }
+        account_info_login(info);
     }
-    ag_manager_list_free(enabled_accounts);
+    g_list_free_full(enabled_accounts, g_object_unref);
+
+    /* Remove from the table the accounts which are no longer enabled */
+    for (l = old_services; l != NULL; l = l->next) {
+        char *key = l->data;
+        trace("removing account %s\n", key);
+        g_hash_table_remove(watcher->services, key);
+    }
+    g_list_free(old_services);
 
     return G_SOURCE_REMOVE;
 }
 
-AccountWatcher *account_watcher_new(const char *service_type,
-                                    AccountEnabledCallback callback,
+AccountWatcher *account_watcher_new(AccountEnabledCallback callback,
                                     void *user_data) {
     AccountWatcher *watcher = g_new0(AccountWatcher, 1);
 
-    watcher->manager = ag_manager_new_for_service_type(service_type);
+    watcher->manager = ag_manager_new();
     watcher->services = g_hash_table_new_full(
-        g_direct_hash, g_direct_equal, NULL, (GDestroyNotify)account_info_free);
+        g_str_hash, g_str_equal, g_free, (GDestroyNotify)account_info_free);
+    watcher->supported_services = NULL;
     watcher->callback = callback;
     watcher->user_data = user_data;
 
+    return watcher;
+}
+
+void account_watcher_add_service(AccountWatcher *watcher,
+                                 char *serviceId) {
+    watcher->supported_services =
+        g_slist_prepend(watcher->supported_services, serviceId);
+}
+
+void account_watcher_run(AccountWatcher *watcher) {
     /* Make sure main setup occurs within the mainloop thread */
     g_idle_add(account_watcher_setup, watcher);
-    return watcher;
 }
 
 struct refresh_info {
     AccountWatcher *watcher;
     AgAccountId account_id;
+    char *service_name;
 };
+
+static void refresh_info_free(struct refresh_info *data) {
+    g_free(data->service_name);
+    g_free(data);
+}
 
 static gboolean account_watcher_refresh_cb(void *user_data) {
     struct refresh_info *data = (struct refresh_info *)user_data;
 
-    AccountInfo *info = g_hash_table_lookup(
-        data->watcher->services, GUINT_TO_POINTER(data->account_id));
+    char *key = g_strdup_printf("%d/%s", data->account_id, data->service_name);
+    AccountInfo *info = g_hash_table_lookup(data->watcher->services, key);
     if (info != NULL) {
         account_info_login(info);
     }
@@ -304,10 +285,12 @@ static gboolean account_watcher_refresh_cb(void *user_data) {
     return G_SOURCE_REMOVE;
 }
 
-void account_watcher_refresh(AccountWatcher *watcher, unsigned int account_id) {
+void account_watcher_refresh(AccountWatcher *watcher, unsigned int account_id,
+                             const char *service_name) {
     struct refresh_info *data = g_new(struct refresh_info, 1);
     data->watcher = watcher;
     data->account_id = account_id;
+    data->service_name = g_strdup(service_name);
     g_idle_add_full(G_PRIORITY_DEFAULT_IDLE, account_watcher_refresh_cb,
-                    data, g_free);
+                    data, (GDestroyNotify)refresh_info_free);
 }

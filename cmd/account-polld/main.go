@@ -27,6 +27,7 @@ import (
 	"launchpad.net/account-polld/accounts"
 	"launchpad.net/account-polld/gettext"
 	"launchpad.net/account-polld/plugins"
+	"launchpad.net/account-polld/plugins/dekko"
 	"launchpad.net/account-polld/plugins/gcalendar"
 	"launchpad.net/account-polld/plugins/gmail"
 	"launchpad.net/account-polld/plugins/twitter"
@@ -41,16 +42,14 @@ type PostWatch struct {
 }
 
 type AccountKey struct {
-	serviceType string
+	serviceId   string
 	accountId   uint
 }
 
 /* Use identifiers and API keys provided by the respective webapps which are the official
    end points for the notifications */
 const (
-	SERVICETYPE_WEBAPPS  = "webapps"
-	SERVICETYPE_CALENDAR = "calendar"
-
+	SERVICENAME_DEKKO     = "dekko.dekkoproject_dekko"
 	SERVICENAME_GMAIL     = "com.ubuntu.developer.webapps.webapp-gmail_webapp-gmail"
 	SERVICENAME_TWITTER   = "com.ubuntu.developer.webapps.webapp-twitter_webapp-twitter"
 	SERVICENAME_GCALENDAR = "google-caldav"
@@ -101,16 +100,18 @@ func main() {
 }
 
 func monitorAccounts(postWatch chan *PostWatch, pollBus *pollbus.PollBus) {
-	watchers := make(map[string]*accounts.Watcher)
-	watchers[SERVICETYPE_WEBAPPS] = accounts.NewWatcher(SERVICETYPE_WEBAPPS)
-	watchers[SERVICETYPE_CALENDAR] = accounts.NewWatcher(SERVICETYPE_CALENDAR)
+	watcher := accounts.NewWatcher()
+	watcher.AddService(SERVICENAME_DEKKO)
+	watcher.AddService(SERVICENAME_GMAIL)
+	watcher.AddService(SERVICENAME_GCALENDAR)
+	watcher.AddService(SERVICENAME_TWITTER)
 
-	mgr := make(map[AccountKey]*AccountManager)
+	mgr := make(map[AccountKey]*AccountService)
 
 	var wg sync.WaitGroup
 
 	pullAccount := func(data accounts.AuthData) bool {
-		accountKey := AccountKey{data.ServiceType, data.AccountId}
+		accountKey := AccountKey{data.ServiceName, data.AccountId}
 		if account, ok := mgr[accountKey]; ok {
 			if data.Enabled {
 				log.Println("New account data for existing account with id", data.AccountId)
@@ -131,8 +132,11 @@ func monitorAccounts(postWatch chan *PostWatch, pollBus *pollbus.PollBus) {
 			}
 		} else if data.Enabled {
 			var plugin plugins.Plugin
-			log.Println("Creat plugin for service: ", data.ServiceName)
+			log.Println("Creating plugin for service: ", data.ServiceName)
 			switch data.ServiceName {
+			case SERVICENAME_DEKKO:
+				log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
+				plugin = dekko.New(data.AccountId)
 			case SERVICENAME_GMAIL:
 				log.Println("Creating account with id", data.AccountId, "for", data.ServiceName)
 				plugin = gmail.New(data.AccountId)
@@ -147,7 +151,7 @@ func monitorAccounts(postWatch chan *PostWatch, pollBus *pollbus.PollBus) {
 				log.Println("Unhandled account with id", data.AccountId, "for", data.ServiceName)
 				return false
 			}
-			mgr[accountKey] = NewAccountManager(watchers[data.ServiceType], postWatch, plugin)
+			mgr[accountKey] = NewAccountService(watcher, postWatch, plugin)
 			mgr[accountKey].updateAuthData(data)
 			wg.Add(1)
 			go func() {
@@ -165,27 +169,14 @@ func monitorAccounts(postWatch chan *PostWatch, pollBus *pollbus.PollBus) {
 L:
 	for {
 		select {
-		case data := <-watchers[SERVICETYPE_CALENDAR].C:
+		case data := <-watcher.C:
 			if pullAccount(data) == false {
-				continue L
-			}
-		case data := <-watchers[SERVICETYPE_WEBAPPS].C:
-			if pullAccount(data) == false {
+				log.Println("pullAccount returned false, continuing")
 				continue L
 			}
 		case <-pollBus.PollChan:
 			wg.Wait() // Finish all running Poll() calls before potentially polling the same accounts again
-			for _, v := range mgr {
-				if v.authData.Error != plugins.ErrTokenExpired { // Do not poll if the new token hasn't been loaded yet
-					wg.Add(1)
-					go func(accountManager *AccountManager) {
-						defer wg.Done()
-						accountManager.Poll(false)
-					}(v)
-				} else {
-					log.Println("Skipping account with id", v.authData.AccountId, "as it is refreshing its token")
-				}
-			}
+			watcher.Run()
 			wg.Wait()
 			pollBus.SignalDone()
 		}
