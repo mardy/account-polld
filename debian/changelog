@@ -1,3 +1,9 @@
+account-polld (0.1+16.10.20160826-0ubuntu1) yakkety; urgency=medium
+
+  * Add Dekko GMail plugin (LP: #1421923)
+
+ -- David Barth <david.barth@canonical.com>  Fri, 26 Aug 2016 13:30:14 +0000
+
 account-polld (0.1+16.10.20160804-0ubuntu1) yakkety; urgency=medium
 
   * Implement the caldav plugin to query for changes on caldav sources.
