@@ -29,7 +29,7 @@ namespace AccountPolld {
 
 #define ACCOUNT_POLLD_OBJECT_PATH \
     QStringLiteral("/com/ubuntu/AccountPolld")
-#define ACCOUNT_POLLD_BUS_NAME \
+#define ACCOUNT_POLLD_SERVICE_NAME \
     QStringLiteral("com.ubuntu.AccountPolld")
 
 class PollServicePrivate;

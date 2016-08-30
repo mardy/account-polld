@@ -24,10 +24,8 @@
 #include <QSettings>
 
 #include "debug.h"
+#include "poll_service.h"
 
-#define ACCOUNT_POLLD_SERVICE_NAME \
-    "com.ubuntu.AccountPolld"
-#define ACCOUNT_POLLD_PATH "/com/ubuntu/AccountPolld"
 
 int main(int argc, char **argv)
 {
@@ -48,15 +46,17 @@ int main(int argc, char **argv)
     }
 
     QDBusConnection connection = QDBusConnection::sessionBus();
-    //connection.registerObject(ACCOUNT_POLLD_PATH, service);
+
+    auto service = new AccountPolld::PollService();
+    connection.registerObject(ACCOUNT_POLLD_OBJECT_PATH, service);
     connection.registerService(ACCOUNT_POLLD_SERVICE_NAME);
 
 
     int ret = app.exec();
 
     connection.unregisterService(ACCOUNT_POLLD_SERVICE_NAME);
-    //connection.unregisterObject(ACCOUNT_POLLD_PATH);
-    //delete service;
+    connection.unregisterObject(ACCOUNT_POLLD_OBJECT_PATH);
+    delete service;
 
     return ret;
 }
