@@ -21,9 +21,11 @@ DEFINES += \
 
 SOURCES += \
     debug.cpp \
-    main.cpp
+    main.cpp \
+    poll_service.cpp
 
 HEADERS += \
     debug.h \
+    poll_service.h
 
 include($${TOP_SRC_DIR}/common-installs-config.pri)
