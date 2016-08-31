@@ -17,14 +17,19 @@ PKGCONFIG += \
     libsignon-qt5
 
 DEFINES += \
-    DEBUG_ENABLED
+    DEBUG_ENABLED \
+    PLUGIN_DATA_FILE=\\\"$${PLUGIN_DATA_FILE}\\\"
 
 SOURCES += \
+    account_manager.cpp \
+    app_manager.cpp \
     debug.cpp \
     main.cpp \
     poll_service.cpp
 
 HEADERS += \
+    account_manager.h \
+    app_manager.h \
     debug.h \
     poll_service.h
 

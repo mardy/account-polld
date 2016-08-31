@@ -31,3 +31,4 @@ isEmpty(PREFIX) {
 }
 
 I18N_DOMAIN="account-polld"
+PLUGIN_DATA_FILE="account-polld/plugin_data.json"
