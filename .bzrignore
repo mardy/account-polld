@@ -1,0 +1,5 @@
+*.moc
+Makefile
+debian/*.log
+debian/*.substvars
+moc_*
