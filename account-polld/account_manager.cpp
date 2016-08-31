@@ -111,43 +111,40 @@ void AccountManagerPrivate::activateAccount(Accounts::AccountService *as,
     const AppData &data = m_apps[appKey];
     if (data.needsAuthData) {
         Accounts::AuthData authData = as->authData();
+        QString key = accountServiceKey(as);
+
         auto identity =
-            SignOn::Identity::existingIdentity(authData.credentialsId(), this);
+            SignOn::Identity::existingIdentity(authData.credentialsId(), as);
         auto authSession = identity->createSession(authData.method());
-        QObject::connect(authSession,
-                         SIGNAL(response(const SignOn::SessionData&)),
-                         this,
-                         SLOT(onAuthSessionResponse(const SignOn::SessionData&)));
-        QObject::connect(authSession, SIGNAL(error(const SignOn::Error&)),
-                         this, SLOT(onAuthSessionError(const SignOn::Error&)));
-        QString mechanism = authData.mechanism();
+        QObject::connect(authSession, &SignOn::AuthSession::response,
+                         [this,as,appKey](const SignOn::SessionData &reply) {
+            as->deleteLater();
 
-        if (accountNeedsNewToken(as)) {
-            /* This works for OAuth 1.0 and 2.0; other authentication plugins should
-             * implement a similar flag. */
-            allSessionData["ForceTokenRefresh"] = true;
-            if (authData.method() == "password" || authData.method() == "sasl") {
-                uint uiPolicy = allSessionData.value("UiPolicy").toUInt();
-                if (uiPolicy != SignOn::NoUserInteractionPolicy) {
-                    allSessionData["UiPolicy"] = SignOn::RequestPasswordPolicy;
-                }
+            QVariantMap authReply = reply.toMap();
+            AuthState &authState = m_authStates[accountServiceKey(as)];
+            if (authState.needNewToken && authReply == authState.lastAuthReply) {
+                /* This account won't work, don't even check it */
+                return;
             }
+
+            authState.needNewToken = false;
+            authState.lastAuthReply = authReply;
+            accountReady(as->account(), appKey, authReply);
+        });
+        QObject::connect(authSession, &SignOn::AuthSession::error,
+                         [this,as](const SignOn::Error &error) {
+            as->deleteLater();
+            DEBUG() << "authentication error:" << error.message();
+        });
+
+        AuthState &authState = m_authStates[key];
+
+        QVariantMap sessionData = authData.parameters();
+        sessionData["UiPolicy"] = SignOn::NoUserInteractionPolicy;
+        if (authState.needNewToken) {
+            sessionData["ForceTokenRefresh"] = true;
         }
-
-    }
-
-
-    m_extraReplyData.clear();
-    if (mechanism == "HMAC-SHA1" || mechanism == "PLAINTEXT") {
-        /* For OAuth 1.0, let's return also the Consumer key and secret along
-         * with the reply. */
-        m_extraReplyData[ONLINE_ACCOUNTS_AUTH_KEY_CONSUMER_KEY] =
-            allSessionData.value("ConsumerKey");
-        m_extraReplyData[ONLINE_ACCOUNTS_AUTH_KEY_CONSUMER_SECRET] =
-            allSessionData.value("ConsumerSecret");
-    }
-
-    m_authSession->process(allSessionData, mechanism);
+        authSession->process(sessionData, authData.mechanism());
     } else {
         accountReady(as->account(), appKey);
     }
