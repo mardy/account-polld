@@ -178,10 +178,22 @@ void AccountManager::listAccounts()
         for (auto i = d->m_accountApps.constBegin();
              i != d->m_accountApps.constEnd(); i++) {
             for (Accounts::Service &service: services) {
-                if (!i.value().serviceUsage(service).isEmpty()) {
-                    auto *as = new Accounts::AccountService(account, service);
-                    d->activateAccount(as, i.key());
+                /* Check if the application can use this service */
+                if (i.value().serviceUsage(service).isEmpty()) {
+                    continue;
                 }
+
+                /* Check if the plugin manifest allows using this service */
+                const AppData &appData = d->m_apps[i.key()];
+                if (!appData.services.isEmpty() &&
+                    !appData.services.contains(service.name())) {
+                    DEBUG() << "Skipping service" << service.name() <<
+                        "for plugin" << i.key();
+                    continue;
+                }
+
+                auto *as = new Accounts::AccountService(account, service);
+                d->activateAccount(as, i.key());
             }
         }
     }
