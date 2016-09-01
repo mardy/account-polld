@@ -29,8 +29,19 @@ namespace AccountPolld {
 struct AccountData {
     QString pluginId;
     uint accountId;
+    QString serviceId;
     QVariantMap auth;
+
+    /* This is needed for using the struct as a QHash key; the "auth" map is
+     * intentionally omitted from the comparison as we don't want to use that
+     * as a key, too. */
+    bool operator==(const AccountData &other) const {
+        return pluginId == other.pluginId && accountId == other.accountId &&
+            serviceId == other.serviceId;
+    }
 };
+
+uint qHash(const AccountData &data);
 
 class AppManager;
 

@@ -54,9 +54,12 @@ public:
     void loadApplications();
     void activateAccount(Accounts::AccountService *as,
                          const QString &appKey);
-    void accountReady(Accounts::Account *account, const QString &appKey,
+    void accountReady(Accounts::AccountService *as, const QString &appKey,
                       const QVariantMap &auth = QVariantMap());
     static QString accountServiceKey(Accounts::AccountService *as);
+    static QString accountServiceKey(uint accountId, const QString &serviceId);
+
+    void markAuthFailure(const AccountData &data);
 
 private:
     Accounts::Manager m_manager;
@@ -66,6 +69,11 @@ private:
     QHash<QString,AuthState> m_authStates;
     AccountManager *q_ptr;
 };
+
+uint qHash(const AccountData &data) {
+    return ::qHash(data.pluginId) + ::qHash(data.accountId) +
+        ::qHash(data.serviceId);
+}
 
 } // namespace
 
@@ -79,7 +87,12 @@ AccountManagerPrivate::AccountManagerPrivate(AccountManager *q,
 
 QString AccountManagerPrivate::accountServiceKey(Accounts::AccountService *as)
 {
-    return QString("%1-%2").arg(as->account()->id()).arg(as->service().name());
+    return accountServiceKey(as->account()->id(), as->service().name());
+}
+
+QString AccountManagerPrivate::accountServiceKey(uint accountId, const QString &serviceId)
+{
+    return QString("%1-%2").arg(accountId).arg(serviceId);
 }
 
 void AccountManagerPrivate::loadApplications()
@@ -92,14 +105,15 @@ void AccountManagerPrivate::loadApplications()
     }
 }
 
-void AccountManagerPrivate::accountReady(Accounts::Account *account,
+void AccountManagerPrivate::accountReady(Accounts::AccountService *as,
                                          const QString &appKey,
                                          const QVariantMap &auth)
 {
     Q_Q(AccountManager);
     AccountData accountData;
     accountData.pluginId = appKey;
-    accountData.accountId = account->id();
+    accountData.accountId = as->account()->id();
+    accountData.serviceId = as->service().name();
     accountData.auth = auth;
     QMetaObject::invokeMethod(q, "accountReady", Qt::QueuedConnection,
                               Q_ARG(AccountData, accountData));
@@ -129,7 +143,7 @@ void AccountManagerPrivate::activateAccount(Accounts::AccountService *as,
 
             authState.needNewToken = false;
             authState.lastAuthReply = authReply;
-            accountReady(as->account(), appKey, authReply);
+            accountReady(as, appKey, authReply);
         });
         QObject::connect(authSession, &SignOn::AuthSession::error,
                          [this,as](const SignOn::Error &error) {
@@ -146,8 +160,16 @@ void AccountManagerPrivate::activateAccount(Accounts::AccountService *as,
         }
         authSession->process(sessionData, authData.mechanism());
     } else {
-        accountReady(as->account(), appKey);
+        accountReady(as, appKey);
     }
+}
+
+void AccountManagerPrivate::markAuthFailure(const AccountData &data)
+{
+    QString key = accountServiceKey(data.accountId, data.serviceId);
+    AuthState &authState = m_authStates[key];
+    authState.lastAuthReply = data.auth;
+    authState.needNewToken = true;
 }
 
 AccountManager::AccountManager(AppManager *appManager, QObject *parent):
@@ -197,6 +219,12 @@ void AccountManager::listAccounts()
             }
         }
     }
+}
+
+void AccountManager::markAuthFailure(const AccountData &data)
+{
+    Q_D(AccountManager);
+    d->markAuthFailure(data);
 }
 
 #include "account_manager.moc"
