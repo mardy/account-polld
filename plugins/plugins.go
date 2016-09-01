@@ -27,6 +27,10 @@ import (
 
 	"launchpad.net/account-polld/accounts"
 	"launchpad.net/go-xdg/v0"
+
+	"strings"
+	"launchpad.net/go-dbus/v1"
+	"log"
 )
 
 func init() {
@@ -234,6 +238,65 @@ func FromPersist(pluginName string, accountId uint, data interface{}) (err error
 
 // DefaultSound returns the path to the default sound for a Notification
 func DefaultSound() string {
-	// path is searched within XDG_DATA_DIRS
-	return "sounds/ubuntu/notifications/Blip.ogg"
+	/* Connect to dbus to get incoming message sound path, defaults to Blip
+	 * on error */
+	var (
+		err error
+		conn *dbus.Connection
+		ret string
+		dbusPath dbus.ObjectPath
+	)
+
+	// Connect to dbus system bus
+	if conn, err = dbus.Connect(dbus.SystemBus); err != nil {
+		log.Print("Could not connect to dbus system bus:", err)
+	} else {
+		// Get current user org.freedesktop.Accounts node path
+		obj := conn.Object("org.freedesktop.Accounts", "/org/freedesktop/Accounts")
+		reply, err := obj.Call("org.freedesktop.Accounts",
+							   "FindUserById",
+							   int64(os.Getuid()))
+		if err != nil {
+			log.Print("Could not call org.freedesktop.Accounts.FindUserById dbus method: ", err)
+		} else {
+			if err := reply.Args(&dbusPath); err != nil {
+				log.Print("Could not parse org.freedesktop.Accounts.FindUserById dbus reply: ", err)
+			}
+		}
+
+		if dbusPath != "" {
+			// Get message sound path from AccountsService
+			obj := conn.Object("org.freedesktop.Accounts", dbusPath)
+			reply, err := obj.Call("org.freedesktop.DBus.Properties",
+								   "Get",
+								   "com.ubuntu.touch.AccountsService.Sound",
+								   "IncomingMessageSound")
+			if err != nil {
+				log.Print("Could not get IncomingMessageSound property: ", err)
+			} else {
+				var dbusReply dbus.Variant
+				if err := reply.Args(&dbusReply); err != nil {
+					log.Print("Could not parse IncomingMessageSound property: ", err)
+				} else {
+					ret = dbusReply.Value.(string)
+
+					/* Set the default sound to a path relative to an
+					 * XDG_DATA_DIRS as the push client searches within those
+					 * paths, sounds in other paths don't work */
+					ret = strings.Replace(ret, "/usr/share/", "", 1)
+					if strings.Index(ret, "/") == 0 {
+						log.Print("Could not use incoming message path sound as it is not inside XDG_DATA_DIRS paths: ", ret)
+						ret = ""
+					}
+				}
+			}
+		}
+	}
+
+	if ret == "" {
+		// path is searched within XDG_DATA_DIRS
+		ret = "sounds/ubuntu/notifications/Blip.ogg"
+	}
+
+	return ret
 }
