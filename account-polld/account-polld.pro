@@ -25,12 +25,14 @@ SOURCES += \
     app_manager.cpp \
     debug.cpp \
     main.cpp \
+    plugin.cpp \
     poll_service.cpp
 
 HEADERS += \
     account_manager.h \
     app_manager.h \
     debug.h \
+    plugin.h \
     poll_service.h
 
 include($${TOP_SRC_DIR}/common-installs-config.pri)
