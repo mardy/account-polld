@@ -73,12 +73,12 @@ PluginPrivate::PluginPrivate(Plugin *q,
 
     setProcessChannelMode(QProcess::ForwardedErrorChannel);
     QObject::connect(this, SIGNAL(started()), &m_timer, SLOT(start()));
-    QObject::connect(this, SIGNAL(started()), q, SLOT(ready()));
+    QObject::connect(this, SIGNAL(started()), q, SIGNAL(ready()));
     QObject::connect(this, SIGNAL(finished(int,QProcess::ExitStatus)),
-                     q, SLOT(finished()));
+                     q, SIGNAL(finished()));
     QObject::connect(this, SIGNAL(readyReadStandardOutput()),
                      this, SLOT(onReadyRead()));
-    QObject::connect(&m_timer, SIGNAL(timeout()), this, SLOT(killPlugin));
+    QObject::connect(&m_timer, SIGNAL(timeout()), this, SLOT(killPlugin()));
 }
 
 void PluginPrivate::onReadyRead()

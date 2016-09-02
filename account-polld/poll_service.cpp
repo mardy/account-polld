@@ -154,7 +154,7 @@ void PollServicePrivate::onAccountReady(const AccountData &accountData)
     QJsonObject pluginInput = preparePluginInput(accountData, appData);
 
     Plugin *plugin = new Plugin(appData.execLine, appData.profile, this);
-    QObject::connect(plugin, SIGNAL(finished()), plugin, SLOT(deleteLater));
+    QObject::connect(plugin, SIGNAL(finished()), plugin, SLOT(deleteLater()));
     QObject::connect(plugin, SIGNAL(finished()), this, SLOT(operationFinished()));
     QObject::connect(plugin, &Plugin::ready,
                      [plugin, pluginInput]() { plugin->poll(pluginInput); });
