@@ -57,12 +57,14 @@ public:
 private Q_SLOTS:
     void poll();
     void onAccountReady(const AccountData &data);
+    void operationFinished();
 
 private:
     AppManager m_appManager;
     AccountManager m_accountManager;
     PushClient m_pushClient;
     QHash<AccountData,PollData> m_polls;
+    int m_pendingOperations;
     PollService *q_ptr;
 };
 
@@ -71,12 +73,24 @@ private:
 PollServicePrivate::PollServicePrivate(PollService *q):
     QObject(q),
     m_accountManager(&m_appManager),
+    m_pendingOperations(0),
     q_ptr(q)
 {
     QObject::connect(&m_accountManager,
                      SIGNAL(accountReady(const AccountData&)),
                      this,
                      SLOT(onAccountReady(const AccountData&)));
+    QObject::connect(&m_accountManager, SIGNAL(finished()),
+                     this, SLOT(operationFinished()));
+}
+
+void PollServicePrivate::operationFinished()
+{
+    Q_Q(PollService);
+    m_pendingOperations--;
+    if (m_pendingOperations == 0) {
+        Q_EMIT q->Done();
+    }
 }
 
 QJsonObject
@@ -111,6 +125,7 @@ void PollServicePrivate::handleResponse(const QJsonObject &response,
 
 void PollServicePrivate::poll()
 {
+    m_pendingOperations++;
     m_accountManager.listAccounts();
 }
 
@@ -140,6 +155,7 @@ void PollServicePrivate::onAccountReady(const AccountData &accountData)
 
     Plugin *plugin = new Plugin(appData.execLine, appData.profile, this);
     QObject::connect(plugin, SIGNAL(finished()), plugin, SLOT(deleteLater));
+    QObject::connect(plugin, SIGNAL(finished()), this, SLOT(operationFinished()));
     QObject::connect(plugin, &Plugin::ready,
                      [plugin, pluginInput]() { plugin->poll(pluginInput); });
     QObject::connect(plugin, &Plugin::response,
@@ -147,6 +163,7 @@ void PollServicePrivate::onAccountReady(const AccountData &accountData)
         handleResponse(resp, appData.appId, accountData);
     });
 
+    m_pendingOperations++;
     plugin->run();
 }
 

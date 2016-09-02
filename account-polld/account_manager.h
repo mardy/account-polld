@@ -55,7 +55,7 @@ public:
     ~AccountManager();
 
     /* Scan for accounts; for each valid account, the accountReady() signal
-     * will be emitted */
+     * will be emitted. A finished() signal will be emitted last. */
     void listAccounts();
 
     /* Call when the authentication data for an account is refused by the
@@ -64,6 +64,7 @@ public:
 
 Q_SIGNALS:
     void accountReady(const AccountData &data);
+    void finished();
 
 private:
     AccountManagerPrivate *d_ptr;

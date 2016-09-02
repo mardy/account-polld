@@ -61,12 +61,16 @@ public:
 
     void markAuthFailure(const AccountData &data);
 
+public Q_SLOTS:
+    void operationFinished();
+
 private:
     Accounts::Manager m_manager;
     AppManager *m_appManager;
     Applications m_apps;
     QHash<QString,Accounts::Application> m_accountApps;
     QHash<QString,AuthState> m_authStates;
+    int m_pendingOperations;
     AccountManager *q_ptr;
 };
 
@@ -81,6 +85,7 @@ AccountManagerPrivate::AccountManagerPrivate(AccountManager *q,
                                              AppManager *appManager):
     QObject(q),
     m_appManager(appManager),
+    m_pendingOperations(0),
     q_ptr(q)
 {
 }
@@ -138,16 +143,19 @@ void AccountManagerPrivate::activateAccount(Accounts::AccountService *as,
             AuthState &authState = m_authStates[accountServiceKey(as)];
             if (authState.needNewToken && authReply == authState.lastAuthReply) {
                 /* This account won't work, don't even check it */
+                operationFinished();
                 return;
             }
 
             authState.needNewToken = false;
             authState.lastAuthReply = authReply;
             accountReady(as, appKey, authReply);
+            operationFinished();
         });
         QObject::connect(authSession, &SignOn::AuthSession::error,
                          [this,as](const SignOn::Error &error) {
             as->deleteLater();
+            operationFinished();
             DEBUG() << "authentication error:" << error.message();
         });
 
@@ -158,6 +166,7 @@ void AccountManagerPrivate::activateAccount(Accounts::AccountService *as,
         if (authState.needNewToken) {
             sessionData["ForceTokenRefresh"] = true;
         }
+        m_pendingOperations++;
         authSession->process(sessionData, authData.mechanism());
     } else {
         accountReady(as, appKey);
@@ -170,6 +179,15 @@ void AccountManagerPrivate::markAuthFailure(const AccountData &data)
     AuthState &authState = m_authStates[key];
     authState.lastAuthReply = data.auth;
     authState.needNewToken = true;
+}
+
+void AccountManagerPrivate::operationFinished()
+{
+    Q_Q(AccountManager);
+    m_pendingOperations--;
+    if (m_pendingOperations == 0) {
+        Q_EMIT q->finished();
+    }
 }
 
 AccountManager::AccountManager(AppManager *appManager, QObject *parent):
@@ -188,6 +206,8 @@ void AccountManager::listAccounts()
     Q_D(AccountManager);
 
     d->loadApplications();
+
+    d->m_pendingOperations++;
 
     Accounts::AccountIdList accountIds = d->m_manager.accountListEnabled();
     for (Accounts::AccountId accountId: accountIds) {
@@ -219,6 +239,8 @@ void AccountManager::listAccounts()
             }
         }
     }
+
+    d->operationFinished();
 }
 
 void AccountManager::markAuthFailure(const AccountData &data)

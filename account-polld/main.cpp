@@ -48,9 +48,9 @@ int main(int argc, char **argv)
     QDBusConnection connection = QDBusConnection::sessionBus();
 
     auto service = new AccountPolld::PollService();
-    connection.registerObject(ACCOUNT_POLLD_OBJECT_PATH, service);
+    connection.registerObject(ACCOUNT_POLLD_OBJECT_PATH, service,
+                              QDBusConnection::ExportAllContents);
     connection.registerService(ACCOUNT_POLLD_SERVICE_NAME);
-
 
     int ret = app.exec();
 
