@@ -88,6 +88,7 @@ AccountManagerPrivate::AccountManagerPrivate(AccountManager *q,
     m_pendingOperations(0),
     q_ptr(q)
 {
+    qRegisterMetaType<AccountData>("AccountData");
 }
 
 QString AccountManagerPrivate::accountServiceKey(Accounts::AccountService *as)

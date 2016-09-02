@@ -73,4 +73,6 @@ private:
 
 } // namespace
 
+Q_DECLARE_METATYPE(AccountPolld::AccountData)
+
 #endif // AP_ACCOUNT_MANAGER_H

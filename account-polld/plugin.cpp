@@ -133,6 +133,7 @@ void Plugin::run()
 
     command.append(d->m_execLine);
 
+    DEBUG() << "Starting" << command;
     d->start(command);
 }
 
