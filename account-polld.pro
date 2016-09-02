@@ -4,6 +4,6 @@ include(common-project-config.pri)
 TEMPLATE = subdirs
 SUBDIRS = \
     account-polld \
-    goplugins.pro
+    click-hook
 
 include(common-installs-config.pri)

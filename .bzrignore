@@ -1,5 +1,6 @@
 *.moc
 Makefile
+click-hook/account-polld.hook
 debian/*.log
 debian/*.substvars
 moc_*
