@@ -278,13 +278,23 @@ func DefaultSound() string {
 				if err := reply.Args(&dbusReply); err != nil {
 					log.Print("Could not parse IncomingMessageSound property: ", err)
 				} else {
-					ret = dbusReply.Value.(string)
+					var soundPath string
+					soundPath = dbusReply.Value.(string)
 
 					/* Set the default sound to a path relative to an
 					 * XDG_DATA_DIRS as the push client searches within those
 					 * paths, sounds in other paths don't work */
-					ret = strings.Replace(ret, "/usr/share/", "", 1)
-					if strings.Index(ret, "/") == 0 {
+					for _, basePath := range xdg.Data.Dirs() {
+						if relPath, err := filepath.Rel(basePath, soundPath); err == nil {
+							if strings.Index(relPath, "../") != 0 {
+								ret = relPath
+							}
+						} else {
+							err = nil
+						}
+					}
+
+					if filepath.IsAbs(ret) {
 						log.Print("Could not use incoming message path sound as it is not inside XDG_DATA_DIRS paths: ", ret)
 						ret = ""
 					}
