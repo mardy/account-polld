@@ -21,6 +21,7 @@
  */
 
 #include "fake_push_client.h"
+#include "fake_signond.h"
 
 #include <Accounts/Account>
 #include <Accounts/Manager>
@@ -70,6 +71,7 @@ private Q_SLOTS:
     void cleanup();
 
     void testNoAccounts();
+    void testPluginInput_data();
     void testPluginInput();
     void testWithoutAuthentication_data();
     void testWithoutAuthentication();
@@ -104,6 +106,7 @@ private:
     QDBusConnection m_conn;
     QtDBusTest::DBusServicePtr m_accountPolld;
     FakePushClient m_pushClient;
+    FakeSignond m_signond;
 };
 
 AccountPolldTest::AccountPolldTest():
@@ -115,7 +118,8 @@ AccountPolldTest::AccountPolldTest():
                                                        QDBusConnection::SessionBus,
                                                        ACCOUNT_POLLD_BINARY,
                                                        QStringList())),
-    m_pushClient(&m_mock)
+    m_pushClient(&m_mock),
+    m_signond(&m_mock)
 {
     DBusMock::registerMetaTypes();
 
@@ -251,6 +255,12 @@ void AccountPolldTest::cleanup()
             account->remove();
             account->syncAndBlock();
         }
+
+        /* Delete plugin output files */
+        QDir plugin_dumps(m_pluginDumpPath);
+        Q_FOREACH(const QString &filePath, plugin_dumps.entryList({"*.dump"})) {
+            plugin_dumps.remove(filePath);
+        }
     }
 }
 
@@ -271,30 +281,47 @@ void AccountPolldTest::testNoAccounts()
     QCOMPARE(calls.count(), 0);
 }
 
+void AccountPolldTest::testPluginInput_data()
+{
+    QTest::addColumn<bool>("needsAuthentication");
+
+    QTest::newRow("no authentication") <<
+        false;
+    QTest::newRow("with authentication") <<
+        true;
+}
+
 void AccountPolldTest::testPluginInput()
 {
+    QFETCH(bool, needsAuthentication);
+
     /* prepare accounts */
     Accounts::Manager manager;
     Accounts::Service coolShare = manager.service("com.ubuntu.tests_coolshare");
     Accounts::Service coolMail = manager.service("coolmail");
 
+    uint credentialsId = 45;
+
     Accounts::Account *account = manager.createAccount("cool");
     account->setDisplayName("account 0");
+    account->setCredentialsId(credentialsId);
     account->setEnabled(true);
     account->selectService(coolMail);
     account->setEnabled(true);
     account->syncAndBlock();
 
+    m_signond.addIdentity(credentialsId, QVariantMap());
+
     /* write plugins json file */
-    writePluginsFile(
+    writePluginsFile(QString(
         "{"
         "  \"mail_helper\": {\n"
         "    \"appId\": \"mailer\",\n"
         "    \"exec\": \"" PLUGIN_EXECUTABLE "\",\n"
-        "    \"needsAuthenticationData\": false,\n"
+        "    \"needsAuthData\": %1,\n"
         "    \"profile\": \"unconfined\"\n"
         "  }\n"
-        "}");
+        "}").arg(needsAuthentication ? "true" : "false"));
 
     /* tell the poll plugin how to behave */
     writePluginConf("{ \"notifications\": [] }", 0.1);
@@ -312,10 +339,17 @@ void AccountPolldTest::testPluginInput()
     auto inputs = pluginInput();
     QCOMPARE(inputs.count(), 1);
 
+    QVariantMap authData {
+        { "UiPolicy", 2},
+        { "host", "coolmail.ex"},
+    };
+    QVariantMap expectedAuthData = needsAuthentication ? authData : QVariantMap();
+
     QJsonObject input = inputs[0];
     QCOMPARE(input["accountId"].toInt(), int(account->id()));
     QCOMPARE(input["appId"].toString(), QString("mailer"));
     QCOMPARE(input["helperId"].toString(), QString("mail_helper"));
+    QCOMPARE(input["auth"].toObject().toVariantMap(), expectedAuthData);
 }
 
 void AccountPolldTest::testWithoutAuthentication_data()
@@ -370,7 +404,6 @@ void AccountPolldTest::testWithoutAuthentication()
     account->setDisplayName("disabled");
     account->setEnabled(false);
     account->syncAndBlock();
-    int accountId1 = account->id();
 
     account = manager.createAccount("cool");
     account->setDisplayName("all enabled");
@@ -380,10 +413,6 @@ void AccountPolldTest::testWithoutAuthentication()
     account->selectService(coolMail);
     account->setEnabled(true);
     account->syncAndBlock();
-    int accountId2 = account->id();
-
-    qDebug() << "disabled account id:" << accountId1;
-    qDebug() << "enabled account id:" << accountId2;
 
     /* write plugins json file */
     writePluginsFile(plugins);
@@ -414,51 +443,6 @@ void AccountPolldTest::testWithoutAuthentication()
     QCOMPARE(appIds.toSet(), expectedAppIds.toSet());
     QCOMPARE(notifications.toSet(), expectedNotifications.toSet());
 }
-
-#if 0
-void AccountPolldTest::testAuthSessionProcessUi()
-{
-    QDBusMessage msg = methodCall(SIGNOND_DAEMON_OBJECTPATH,
-                                  SIGNOND_DAEMON_INTERFACE,
-                                  "getAuthSessionObjectPath");
-    msg << uint(0);
-    msg << QString("ssotest");
-    QDBusMessage reply = connection().call(msg);
-    QVERIFY(replyIsValid(reply));
-    QString objectPath = reply.arguments()[0].toString();
-    QVERIFY(objectPath.startsWith('/'));
-
-    /* prepare SignOnUi */
-    m_signonUi.mockedService().ClearCalls().waitForFinished();
-    QVariantMap uiReply {
-        { "data",
-            QVariantMap {
-                { "UserName", "the user" },
-                { "Secret", "s3c'r3t" },
-                { "QueryErrorCode", 0 },
-            }
-        },
-    };
-    m_signonUi.setNextReply(uiReply);
-
-    /* Start the authentication, using a mechanism requiring UI interaction */
-    QVariantMap sessionData {
-        { "Some key", "its value" },
-        { "height", 123 },
-    };
-    msg = methodCall(objectPath, SIGNOND_AUTH_SESSION_INTERFACE, "process");
-    msg << sessionData;
-    msg << QString("mech2");
-    reply = connection().call(msg);
-    QVERIFY(replyIsValid(reply));
-
-    QVariantMap response = QDBusReply<QVariantMap>(reply).value();
-    QVariantMap expectedResponse {
-        { "UserName", "the user" },
-    };
-    QCOMPARE(response, expectedResponse);
-}
-#endif
 
 QTEST_GUILESS_MAIN(AccountPolldTest);
 

@@ -23,13 +23,15 @@ DEFINES += \
     PLUGIN_DATA_FILE=\\\"$${PLUGIN_DATA_FILE}\\\" \
     PLUGIN_EXECUTABLE=\\\"$${PWD}/test_plugin.py\\\" \
     PUSH_CLIENT_MOCK_TEMPLATE=\\\"$${PWD}/push_client.py\\\" \
+    SIGNOND_MOCK_TEMPLATE=\\\"$${PWD}/signond.py\\\" \
     TEST_DATA_DIR=\\\"$${PWD}/data\\\"
 
 SOURCES += \
     tst_account_polld.cpp
 
 HEADERS += \
-    fake_push_client.h
+    fake_push_client.h \
+    fake_signond.h
 
 check.commands = "./$${TARGET}"
 check.depends = $${TARGET}
