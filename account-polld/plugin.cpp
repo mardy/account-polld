@@ -68,7 +68,12 @@ PluginPrivate::PluginPrivate(Plugin *q,
     m_sigtermSent(false),
     q_ptr(q)
 {
-    m_timer.setInterval(10 * 1000);
+    int killTime = 10;
+    QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+    if (environment.contains("AP_PLUGIN_TIMEOUT")) {
+        killTime = environment.value("AP_PLUGIN_TIMEOUT").toInt();
+    }
+    m_timer.setInterval(killTime * 1000);
     m_timer.setSingleShot(true);
 
     setProcessChannelMode(QProcess::ForwardedErrorChannel);
@@ -99,13 +104,14 @@ void PluginPrivate::onReadyRead()
 void PluginPrivate::killPlugin()
 {
     pid_t pid = processId();
+    DEBUG() << "killing plugin" << pid;
     if (!m_sigtermSent) {
-        ::kill(-pid, SIGTERM);
+        ::kill(pid, SIGTERM);
         m_sigtermSent = true;
-        m_timer.setInterval(2 * 1000);
+        m_timer.setInterval(1 * 1000);
         m_timer.start();
     } else {
-        ::kill(-pid, SIGKILL);
+        ::kill(pid, SIGKILL);
     }
 }
 
@@ -142,6 +148,7 @@ void Plugin::poll(const QJsonObject &pollData)
     Q_D(Plugin);
 
     d->write(QJsonDocument(pollData).toJson(QJsonDocument::Compact));
+    d->write("\n");
 }
 
 #include "plugin.moc"

@@ -187,7 +187,10 @@ void AccountManagerPrivate::operationFinished()
     Q_Q(AccountManager);
     m_pendingOperations--;
     if (m_pendingOperations == 0) {
-        Q_EMIT q->finished();
+        /* since the accountReady signal is sent in a queued connection, this
+         * signal must also be sent in that way, in order to be delivered after
+         * all the accountReady signals. */
+        QMetaObject::invokeMethod(q, "finished", Qt::QueuedConnection);
     }
 }
 

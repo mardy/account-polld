@@ -21,7 +21,7 @@ PKGCONFIG += \
 DEFINES += \
     ACCOUNT_POLLD_BINARY=\\\"$${TOP_BUILD_DIR}/account-polld/account-polld\\\" \
     PLUGIN_DATA_FILE=\\\"$${PLUGIN_DATA_FILE}\\\" \
-    PLUGIN_EXECUTABLE=\\\"$${PWD}/plugin.py\\\" \
+    PLUGIN_EXECUTABLE=\\\"$${PWD}/test_plugin.py\\\" \
     PUSH_CLIENT_MOCK_TEMPLATE=\\\"$${PWD}/push_client.py\\\" \
     TEST_DATA_DIR=\\\"$${PWD}/data\\\"
 

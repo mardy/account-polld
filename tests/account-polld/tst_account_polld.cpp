@@ -28,6 +28,8 @@
 #include <QDBusPendingReply>
 #include <QDebug>
 #include <QDir>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
@@ -35,6 +37,19 @@
 #include <libqtdbustest/QProcessDBusService.h>
 
 using namespace QtDBusMock;
+
+namespace QTest {
+template<>
+char *toString(const QSet<QString> &set)
+{
+    QByteArray ba = "QSet<QString>(";
+    QStringList list = set.toList();
+    ba += list.join(", ");
+    ba += ")";
+    return qstrdup(ba.data());
+}
+} // QTest namespace
+
 
 #define ACCOUNT_POLLD_OBJECT_PATH \
     QStringLiteral("/com/ubuntu/AccountPolld")
@@ -55,6 +70,7 @@ private Q_SLOTS:
     void cleanup();
 
     void testNoAccounts();
+    void testPluginInput();
     void testWithoutAuthentication_data();
     void testWithoutAuthentication();
 
@@ -63,6 +79,9 @@ Q_SIGNALS:
 
 private:
     void writePluginsFile(const QString &contents);
+    void writePluginConf(const QString &reply, double delay);
+    void writePluginConf(const QJsonObject &reply, double delay);
+    QList<QJsonObject> pluginInput() const;
     void setupEnvironment();
     void clearBaseDir();
     QDBusPendingReply<void> callPoll() {
@@ -78,6 +97,8 @@ private:
 private:
     QTemporaryDir m_baseDir;
     QString m_pluginsFilePath;
+    QString m_pluginConfFilePath;
+    QString m_pluginDumpPath;
     QtDBusTest::DBusTestRunner m_dbus;
     QtDBusMock::DBusMock m_mock;
     QDBusConnection m_conn;
@@ -116,6 +137,44 @@ void AccountPolldTest::writePluginsFile(const QString &contents)
     file.write(contents.toUtf8());
 }
 
+void AccountPolldTest::writePluginConf(const QString &reply, double delay)
+{
+    writePluginConf(QJsonDocument::fromJson(reply.toUtf8()).object(),
+                    delay);
+}
+
+void AccountPolldTest::writePluginConf(const QJsonObject &reply, double delay)
+{
+    QJsonObject contents;
+    contents["reply"] = reply;
+    contents["delay"] = delay;
+    QFile file(m_pluginConfFilePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        qWarning() << "Could not write file" << m_pluginsFilePath;
+        return;
+    }
+
+    file.write(QJsonDocument(contents).toJson());
+}
+
+QList<QJsonObject> AccountPolldTest::pluginInput() const
+{
+    QList<QJsonObject> objects;
+
+    QDir dir(m_pluginDumpPath);
+    Q_FOREACH(const QString &filePath, dir.entryList({"*.dump"})) {
+        QFile file(dir.filePath(filePath));
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            qWarning() << "Could not read file" << filePath;
+            continue;
+        }
+        QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+        objects.append(doc.object());
+    }
+
+    return objects;
+}
+
 void AccountPolldTest::setupEnvironment()
 {
     QVERIFY(m_baseDir.isValid());
@@ -129,6 +188,11 @@ void AccountPolldTest::setupEnvironment()
     m_pluginsFilePath =
         baseDir.filePath("home/.local/share/" PLUGIN_DATA_FILE);
 
+    m_pluginConfFilePath =
+        baseDir.filePath("home/.config/test_plugin.conf");
+    m_pluginDumpPath =
+        baseDir.filePath("home/.local/share/test_plugin");
+
     //qputenv("ACCOUNTS", baseDirPath + "/home/.config/libaccounts-glib");
     qputenv("AG_APPLICATIONS", TEST_DATA_DIR);
     qputenv("AG_SERVICES", TEST_DATA_DIR);
@@ -140,6 +204,7 @@ void AccountPolldTest::setupEnvironment()
     qputenv("XDG_RUNTIME_DIR", baseDirPath + "/runtime-dir");
 
     qputenv("AP_LOGGING_LEVEL", "2");
+    qputenv("AP_PLUGIN_TIMEOUT", "3");
 
     /* Make sure we accidentally don't talk to the developer's services running
      * in the session bus */
@@ -166,7 +231,9 @@ void AccountPolldTest::init()
     QDir baseDir(m_baseDir.path());
 
     baseDir.mkpath("home");
+    baseDir.mkpath("home/.config");
     baseDir.mkpath("home/.local/share/account-polld");
+    baseDir.mkpath("home/.local/share/test_plugin");
     baseDir.mkpath("runtime-dir");
 }
 
@@ -204,13 +271,62 @@ void AccountPolldTest::testNoAccounts()
     QCOMPARE(calls.count(), 0);
 }
 
+void AccountPolldTest::testPluginInput()
+{
+    /* prepare accounts */
+    Accounts::Manager manager;
+    Accounts::Service coolShare = manager.service("com.ubuntu.tests_coolshare");
+    Accounts::Service coolMail = manager.service("coolmail");
+
+    Accounts::Account *account = manager.createAccount("cool");
+    account->setDisplayName("account 0");
+    account->setEnabled(true);
+    account->selectService(coolMail);
+    account->setEnabled(true);
+    account->syncAndBlock();
+
+    /* write plugins json file */
+    writePluginsFile(
+        "{"
+        "  \"mail_helper\": {\n"
+        "    \"appId\": \"mailer\",\n"
+        "    \"exec\": \"" PLUGIN_EXECUTABLE "\",\n"
+        "    \"needsAuthenticationData\": false,\n"
+        "    \"profile\": \"unconfined\"\n"
+        "  }\n"
+        "}");
+
+    /* tell the poll plugin how to behave */
+    writePluginConf("{ \"notifications\": [] }", 0.1);
+
+    /* Start polling */
+    QSignalSpy doneCalled(this, SIGNAL(pollDone()));
+    auto call = callPoll();
+
+    QVERIFY(doneCalled.wait());
+    QCOMPARE(doneCalled.count(), 1);
+
+    QVERIFY(call.isFinished());
+    QVERIFY(replyIsValid(call.reply()));
+
+    auto inputs = pluginInput();
+    QCOMPARE(inputs.count(), 1);
+
+    QJsonObject input = inputs[0];
+    QCOMPARE(input["accountId"].toInt(), int(account->id()));
+    QCOMPARE(input["appId"].toString(), QString("mailer"));
+    QCOMPARE(input["helperId"].toString(), QString("mail_helper"));
+}
+
 void AccountPolldTest::testWithoutAuthentication_data()
 {
     QTest::addColumn<QString>("plugins");
+    QTest::addColumn<QString>("pluginReply");
     QTest::addColumn<QStringList>("expectedAppIds");
     QTest::addColumn<QStringList>("expectedNotifications");
 
     QTest::newRow("no plugins") <<
+        "{}" <<
         "{}" <<
         QStringList{} <<
         QStringList{};
@@ -224,13 +340,24 @@ void AccountPolldTest::testWithoutAuthentication_data()
         "    \"profile\": \"unconfined\"\n"
         "  }\n"
         "}" <<
-        QStringList{} <<
-        QStringList{};
+        "{"
+        "  \"notifications\": [\n"
+        "    {\n"
+        "      \"message\": \"hello\"\n"
+        "    },\n"
+        "    {\n"
+        "      \"message\": \"second\"\n"
+        "    }\n"
+        "  ]\n"
+        "}" <<
+        QStringList{ "mailer" } <<
+        QStringList{ "{\"message\":\"hello\"}", "{\"message\":\"second\"}" };
 }
 
 void AccountPolldTest::testWithoutAuthentication()
 {
     QFETCH(QString, plugins);
+    QFETCH(QString, pluginReply);
     QFETCH(QStringList, expectedAppIds);
     QFETCH(QStringList, expectedNotifications);
 
@@ -243,6 +370,7 @@ void AccountPolldTest::testWithoutAuthentication()
     account->setDisplayName("disabled");
     account->setEnabled(false);
     account->syncAndBlock();
+    int accountId1 = account->id();
 
     account = manager.createAccount("cool");
     account->setDisplayName("all enabled");
@@ -252,9 +380,16 @@ void AccountPolldTest::testWithoutAuthentication()
     account->selectService(coolMail);
     account->setEnabled(true);
     account->syncAndBlock();
+    int accountId2 = account->id();
+
+    qDebug() << "disabled account id:" << accountId1;
+    qDebug() << "enabled account id:" << accountId2;
 
     /* write plugins json file */
     writePluginsFile(plugins);
+
+    /* tell the poll plugin how to behave */
+    writePluginConf(pluginReply, 0.1);
 
     /* Start polling */
     QSignalSpy doneCalled(this, SIGNAL(pollDone()));
@@ -266,10 +401,18 @@ void AccountPolldTest::testWithoutAuthentication()
     QVERIFY(call.isFinished());
     QVERIFY(replyIsValid(call.reply()));
 
-    /* Check that there are no notifications */
+    /* Check that there are the expected notifications */
     QList<MethodCall> calls =
         m_pushClient.mockedService().GetMethodCalls("Post");
-    QCOMPARE(calls.count(), expectedAppIds.count());
+    QStringList appIds;
+    QStringList notifications;
+    for (const auto &call: calls) {
+        const QVariantList &args = call.args();
+        appIds.append(args[0].toString());
+        notifications.append(args[1].toString());
+    }
+    QCOMPARE(appIds.toSet(), expectedAppIds.toSet());
+    QCOMPARE(notifications.toSet(), expectedNotifications.toSet());
 }
 
 #if 0

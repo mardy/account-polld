@@ -71,7 +71,7 @@ void PushClient::post(const QString &appId, const QJsonObject &message)
     Q_D(PushClient);
 
     QDBusMessage msg = QDBusMessage::createMethodCall("com.ubuntu.Postal",
-                                                      "/com/ubuntu/Postal/",
+                                                      "/com/ubuntu/Postal",
                                                       "com.ubuntu.Postal",
                                                       "Post");
     msg << appId;
