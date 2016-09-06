@@ -1,6 +1,11 @@
 *.moc
-Makefile
+Makefile*
+account-polld/account-polld
 click-hook/account-polld.hook
 debian/*.log
 debian/*.substvars
+debian/*-stamp
+debian/account-polld/
+debian/files
 moc_*
+tests/account-polld/tst_account_polld
