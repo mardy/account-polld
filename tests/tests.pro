@@ -1,3 +1,4 @@
 TEMPLATE = subdirs
 SUBDIRS = \
-    account-polld
+    account-polld \
+    click-hook

@@ -9,3 +9,4 @@ debian/account-polld/
 debian/files
 moc_*
 tests/account-polld/tst_account_polld
+tests/click-hook/tst_click_hook

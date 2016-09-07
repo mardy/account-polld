@@ -25,10 +25,8 @@ class HookProcessor:
     def write_plugin_data(self):
         plugin_data = {}
         for path in self.xdg_data_dirs:
-            data = self.collect_plugins(path, trusted=True)
+            data = self.collect_plugins(path)
             plugin_data.update(data)
-        data = self.collect_plugins(self.xdg_data_home, trusted=False)
-        plugin_data.update(data)
 
         # write the collected data to a temp file and rename the original once
         # everything is on disk
@@ -37,13 +35,15 @@ class HookProcessor:
             with open(tmp_filename, 'w') as dest:
                 json.dump(plugin_data, dest)
                 dest.flush()
-            os.rename(tmp_filename, plugins_data_path)
-        except Exception:
+            os.rename(tmp_filename, self.plugins_data_path)
+        except Exception as e:
+            print('Writing file %s failed: %s' % (self.plugins_data_path, e), file=sys.stderr)
             return False
         return True
 
 
-    def collect_plugins(self, base_path, trusted):
+    def collect_plugins(self, base_path):
+        trusted = False if base_path == self.xdg_data_home else True
         hooks_path = os.path.join(base_path, 'account-polld', 'plugins')
         plugins_data = {}
         if not os.path.isdir(hooks_path):
@@ -81,11 +81,11 @@ class HookProcessor:
 
             parsed = {
                 'exec': exec_path,
-                'app_id': app_id,
+                'appId': app_id,
             }
-            parsed['needs_authentication_data'] = data.get('needs_authentication_data', False)
+            parsed['needsAuthData'] = data.get('needs_authentication_data', False)
             if 'service_ids' in data:
-                parsed['service_ids'] = data['service_ids']
+                parsed['services'] = data['service_ids']
             if 'interval' in data:
                 parsed['interval'] = data['interval']
             plugins_data[helper_id] = parsed
