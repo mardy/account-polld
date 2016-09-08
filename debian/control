@@ -3,19 +3,14 @@ Section: net
 Priority: optional
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 Build-Depends: debhelper (>= 9),
-               dh-golang,
                dh-translations,
-               golang-go,
-               golang-go-dbus-dev,
-               golang-go-xdg-dev,
-               golang-gocheck-dev,
-               golang-ubuntu-push-dev,
-               libaccounts-glib-dev,
-               libclick-0.4-dev,
-               libsignon-glib-dev,
+               libaccounts-qt5-dev,
+               libqtdbusmock1-dev,
+               libqtdbustest1-dev,
+               libsignon-qt5-dev,
+               pkg-config,
                qt5-default,
                qtbase5-dev,
-               qtpim5-dev,
 Standards-Version: 3.9.5
 Homepage: https://launchpad.net/account-polld
 Vcs-Browser: http://bazaar.launchpad.net/~phablet-team/account-polld/trunk/files
