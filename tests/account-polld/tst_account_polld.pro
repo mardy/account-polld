@@ -4,7 +4,6 @@ TEMPLATE = app
 TARGET = tst_account_polld
 
 CONFIG += \
-    c++11 \
     debug \
     link_pkgconfig
 

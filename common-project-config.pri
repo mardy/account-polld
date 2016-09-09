@@ -7,6 +7,8 @@ QMAKE_CXXFLAGS += -Werror
 # Disable RTTI
 QMAKE_CXXFLAGS += -fno-exceptions -fno-rtti
 
+CONFIG += c++11
+
 !defined(TOP_SRC_DIR, var) {
     TOP_SRC_DIR = $$PWD
     TOP_BUILD_DIR = $${TOP_SRC_DIR}/$(BUILD_DIR)

@@ -3,7 +3,6 @@ include(../../common-project-config.pri)
 TARGET = tst_click_hook
 
 CONFIG += \
-    c++11 \
     debug
 
 QT += \
