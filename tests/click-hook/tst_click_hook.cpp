@@ -173,7 +173,7 @@ void ClickHookTest::writePackageFile(const QString &name,
 QVariantMap ClickHookTest::parseManifest() const
 {
     QVariantMap map;
-    QFile file(m_manifestDir.filePath("plugins_data.json"));
+    QFile file(m_manifestDir.filePath("plugin_data.json"));
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qWarning() << "Could not open manifest file" << file.fileName();
         return map;

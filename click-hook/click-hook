@@ -17,9 +17,9 @@ class HookProcessor:
         self.xdg_data_home = xdg.BaseDirectory.xdg_data_home
         self.xdg_data_dirs = xdg.BaseDirectory.xdg_data_dirs
         self.plugins_data_path = os.path.join(self.xdg_data_home, 'account-polld',
-                                              'plugins_data.json')
+                                              'plugin_data.json')
         self.plugins_data_path_tmp = os.path.join(self.xdg_data_home, 'account-polld',
-                                                  '.plugins_data_%s.tmp')
+                                                  '.plugin_data_%s.tmp')
         os.makedirs(os.path.join(self.xdg_data_home, 'account-polld'))
 
 
