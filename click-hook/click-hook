@@ -60,6 +60,12 @@ class HookProcessor:
                 continue
 
             helper_id = os.path.splitext(hook_fname)[0]
+            profile = 'unconfined' if trusted else helper_id
+            if helper_id.count('_') == 2:
+                helper_short_id = '_'.join(helper_id.split('_')[0:2])
+            else:
+                helper_short_id = helper_id
+
             exec_path = data['exec']
             if exec_path != "":
                 realpath = os.path.realpath(os.path.join(hooks_path,
@@ -68,7 +74,7 @@ class HookProcessor:
             app_id = data.get('app_id', None)
             if app_id is None:
                 # no app_id, use the package name from the helper_id
-                app_id = '_'.join(helper_id.split('_')[0:2])
+                app_id = helper_short_id
             elif app_id.count('_') >= 2:
                 # remove the version from the app_id
                 app_id = '_'.join(app_id.split('_')[0:2])
@@ -83,13 +89,14 @@ class HookProcessor:
             parsed = {
                 'exec': exec_path,
                 'appId': app_id,
+                'profile': profile,
             }
             parsed['needsAuthData'] = data.get('needs_authentication_data', False)
             if 'service_ids' in data:
                 parsed['services'] = data['service_ids']
             if 'interval' in data:
                 parsed['interval'] = data['interval']
-            plugins_data[helper_id] = parsed
+            plugins_data[helper_short_id] = parsed
 
         return plugins_data
 

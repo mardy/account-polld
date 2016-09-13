@@ -81,7 +81,6 @@ private:
     void writePackageFile(const QString &name,
                           const QString &contents = QString());
     QVariantMap parseManifest() const;
-    QString stripVersion(const QString &appId) const;
 
 private:
     QTemporaryDir m_baseDir;
@@ -133,12 +132,6 @@ bool ClickHookTest::runHookProcess()
     return process.exitCode() == EXIT_SUCCESS;
 }
 
-QString ClickHookTest::stripVersion(const QString &appId) const
-{
-    QStringList parts = appId.split('_').mid(0, 2);
-    return parts.join('_');
-}
-
 void ClickHookTest::writeSystemHookFile(const QString &name,
                                         const QString &contents)
 {
@@ -155,9 +148,9 @@ void ClickHookTest::writePackageFile(const QString &name,
                                      const QString &contents)
 {
     QFileInfo fileInfo(name);
-    QString profile = fileInfo.path();
+    QString pluginId = fileInfo.path();
 
-    m_packageDir.mkpath(profile);
+    m_packageDir.mkpath(pluginId);
     QFile file(m_packageDir.filePath(name));
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         qWarning() << "Could not write file" << name;
@@ -166,7 +159,6 @@ void ClickHookTest::writePackageFile(const QString &name,
 
     file.write(contents.toUtf8());
 
-    QString pluginId = stripVersion(profile);
     QFile::link(file.fileName(), m_localHooksDir.filePath(pluginId + ".json"));
 }
 
@@ -213,6 +205,7 @@ void ClickHookTest::testValidHooks_data()
             { "system-app", QVariantMap {
                     { "appId", "my-system-app" },
                     { "exec", "/usr/bin/helper" },
+                    { "profile", "unconfined" },
                     { "needsAuthData", false },
                 },
             },
@@ -235,6 +228,7 @@ void ClickHookTest::testValidHooks_data()
             { "system-app", QVariantMap {
                     { "appId", "my-system-app" },
                     { "exec", "/usr/bin/helper" },
+                    { "profile", "unconfined" },
                     { "needsAuthData", true },
                     { "services", QStringList { "one", "two" } },
                     { "interval", 20 },
@@ -255,6 +249,7 @@ void ClickHookTest::testValidHooks_data()
         QVariantMap {
             { "package_helper", QVariantMap {
                     { "appId", "package_myapp" },
+                    { "profile", "package_helper_0.3" },
                     { "exec", "/usr/bin/helper" },
                     { "needsAuthData", false },
                 },
@@ -282,6 +277,7 @@ void ClickHookTest::testValidHooks_data()
             { "package_helper", QVariantMap {
                     { "appId", "package_myapp" },
                     { "exec", "/usr/bin/helper" },
+                    { "profile", "package_helper_0.3" },
                     { "needsAuthData", false },
                 },
             },
@@ -300,6 +296,7 @@ void ClickHookTest::testValidHooks_data()
             { "package_helper", QVariantMap {
                     { "appId", "package_helper" },
                     { "exec", "/usr/bin/helper" },
+                    { "profile", "package_helper_0.3" },
                     { "needsAuthData", false },
                 },
             },
