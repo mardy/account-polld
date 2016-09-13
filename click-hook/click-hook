@@ -20,6 +20,7 @@ class HookProcessor:
                                               'plugins_data.json')
         self.plugins_data_path_tmp = os.path.join(self.xdg_data_home, 'account-polld',
                                                   '.plugins_data_%s.tmp')
+        os.makedirs(os.path.join(self.xdg_data_home, 'account-polld'))
 
 
     def write_plugin_data(self):
