@@ -111,6 +111,7 @@ void PollServicePrivate::handleResponse(const QJsonObject &response,
                                         const QString &appId,
                                         const AccountData &accountData)
 {
+    DEBUG() << "Plugin response:" << response;
     QJsonObject error = response["error"].toObject();
     if (error["code"].toString() == "ERR_INVALID_AUTH") {
         m_accountManager.markAuthFailure(accountData);

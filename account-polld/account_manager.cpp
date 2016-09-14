@@ -60,6 +60,8 @@ public:
     static QString accountServiceKey(uint accountId, const QString &serviceId);
 
     void markAuthFailure(const AccountData &data);
+    QVariantMap formatAuthReply(const Accounts::AuthData &authData,
+                                const QVariantMap &reply) const;
 
 public Q_SLOTS:
     void operationFinished();
@@ -116,6 +118,26 @@ void AccountManagerPrivate::loadApplications()
     }
 }
 
+QVariantMap AccountManagerPrivate::formatAuthReply(const Accounts::AuthData &authData,
+                                                   const QVariantMap &reply) const
+{
+    QVariantMap formattedReply(reply);
+
+    QString mechanism = authData.mechanism();
+    const QVariantMap &parameters = authData.parameters();
+    if (mechanism == "HMAC-SHA1" || mechanism == "PLAINTEXT") {
+        /* For OAuth 1.0, let's return also the Consumer key and secret along
+         * with the reply. */
+        formattedReply["ClientId"] = parameters.value("ConsumerKey");
+        formattedReply["ClientSecret"] = parameters.value("ConsumerSecret");
+    } else if (mechanism == "web_server" || mechanism == "user_agent") {
+        formattedReply["ClientId"] = parameters.value("ClientId");
+        formattedReply["ClientSecret"] = parameters.value("ClientId");
+    }
+
+    return formattedReply;
+}
+
 void AccountManagerPrivate::accountReady(Accounts::AccountService *as,
                                          const QString &appKey,
                                          const QVariantMap &auth)
@@ -155,7 +177,7 @@ void AccountManagerPrivate::activateAccount(Accounts::AccountService *as,
 
             authState.needNewToken = false;
             authState.lastAuthReply = authReply;
-            accountReady(as, appKey, authReply);
+            accountReady(as, appKey, formatAuthReply(as->authData(), authReply));
             operationFinished();
         });
         QObject::connect(authSession, &SignOn::AuthSession::error,

@@ -340,8 +340,12 @@ void AccountPolldTest::testPluginInput()
     QCOMPARE(inputs.count(), 1);
 
     QVariantMap authData {
-        { "UiPolicy", 2},
-        { "host", "coolmail.ex"},
+        { "UiPolicy", 2 },
+        { "host", "coolmail.ex" },
+        { "ClientId", "my-client-id" },
+        { "ClientSecret", "my-client-secret" },
+        { "ConsumerKey", "my-client-id" },
+        { "ConsumerSecret", "my-client-secret" },
     };
     QVariantMap expectedAuthData = needsAuthentication ? authData : QVariantMap();
 

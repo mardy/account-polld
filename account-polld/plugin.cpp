@@ -147,6 +147,7 @@ void Plugin::poll(const QJsonObject &pollData)
 {
     Q_D(Plugin);
 
+    DEBUG() << "Plugin input:" << pollData;
     d->write(QJsonDocument(pollData).toJson(QJsonDocument::Compact));
     d->write("\n");
 }
