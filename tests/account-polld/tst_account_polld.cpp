@@ -424,6 +424,8 @@ void AccountPolldTest::testWithoutAuthentication()
     /* tell the poll plugin how to behave */
     writePluginConf(pluginReply, 0.1);
 
+    m_pushClient.mockedService().ClearCalls();
+
     /* Start polling */
     QSignalSpy doneCalled(this, SIGNAL(pollDone()));
     auto call = callPoll();
@@ -435,6 +437,8 @@ void AccountPolldTest::testWithoutAuthentication()
     QVERIFY(replyIsValid(call.reply()));
 
     /* Check that there are the expected notifications */
+    QTRY_COMPARE(m_pushClient.mockedService().GetMethodCalls("Post").value().count(),
+                 expectedNotifications.count());
     QList<MethodCall> calls =
         m_pushClient.mockedService().GetMethodCalls("Post");
     QStringList appIds;
