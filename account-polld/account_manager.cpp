@@ -107,7 +107,12 @@ void AccountManagerPrivate::loadApplications()
 
     m_apps = m_appManager->applications();
     for (auto i = m_apps.constBegin(); i != m_apps.constEnd(); i++) {
-        m_accountApps.insert(i.key(), m_manager.application(i.value().appId));
+        Accounts::Application app = m_manager.application(i.value().appId);
+        if (app.isValid()) {
+            m_accountApps.insert(i.key(), app);
+        } else {
+            DEBUG() << "Application not found:" << i.value().appId;
+        }
     }
 }
 
