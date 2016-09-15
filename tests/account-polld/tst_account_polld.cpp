@@ -208,7 +208,7 @@ void AccountPolldTest::setupEnvironment()
     qputenv("XDG_RUNTIME_DIR", baseDirPath + "/runtime-dir");
 
     qputenv("AP_LOGGING_LEVEL", "2");
-    qputenv("AP_PLUGIN_TIMEOUT", "3");
+    qputenv("AP_PLUGIN_TIMEOUT", "5");
 
     /* Make sure we accidentally don't talk to the developer's services running
      * in the session bus */
@@ -333,7 +333,7 @@ void AccountPolldTest::testPluginInput()
     QSignalSpy doneCalled(this, SIGNAL(pollDone()));
     auto call = callPoll();
 
-    QVERIFY(doneCalled.wait());
+    QVERIFY(doneCalled.wait(10000));
     QCOMPARE(doneCalled.count(), 1);
 
     QVERIFY(call.isFinished());
@@ -445,7 +445,7 @@ void AccountPolldTest::testWithoutAuthentication()
     QSignalSpy doneCalled(this, SIGNAL(pollDone()));
     auto call = callPoll();
 
-    QVERIFY(doneCalled.wait());
+    QVERIFY(doneCalled.wait(10000));
     QCOMPARE(doneCalled.count(), 1);
 
     QVERIFY(call.isFinished());
