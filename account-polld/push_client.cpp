@@ -41,6 +41,8 @@ public:
     PushClientPrivate(PushClient *q);
     ~PushClientPrivate() {};
 
+    static QByteArray makeObjectPath(const QString &appId);
+
 private:
     QDBusConnection m_conn;
     PushClient *q_ptr;
@@ -53,6 +55,31 @@ PushClientPrivate::PushClientPrivate(PushClient *q):
     m_conn(QDBusConnection::sessionBus()),
     q_ptr(q)
 {
+}
+
+QByteArray PushClientPrivate::makeObjectPath(const QString &appId)
+{
+    QByteArray path(QByteArrayLiteral("/com/ubuntu/Postal/"));
+
+    QByteArray pkg = appId.split('_').first().toUtf8();
+    for (int i = 0; i < pkg.count(); i++) {
+        char buffer[10];
+        char c = pkg[i];
+        switch (c) {
+        case '+':
+        case '.':
+        case '-':
+        case ':':
+        case '~':
+        case '_':
+            sprintf(buffer, "_%.2x", c);
+            path += buffer;
+            break;
+        default:
+            path += c;
+        }
+    }
+    return path;
 }
 
 PushClient::PushClient(QObject *parent):
@@ -70,8 +97,9 @@ void PushClient::post(const QString &appId, const QJsonObject &message)
 {
     Q_D(PushClient);
 
+    QByteArray objectPath = d->makeObjectPath(appId);
     QDBusMessage msg = QDBusMessage::createMethodCall("com.ubuntu.Postal",
-                                                      "/com/ubuntu/Postal",
+                                                      objectPath,
                                                       "com.ubuntu.Postal",
                                                       "Post");
     msg << appId;

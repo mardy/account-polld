@@ -228,6 +228,9 @@ void AccountPolldTest::initTestCase()
 {
     m_dbus.registerService(m_accountPolld);
     m_dbus.startServices();
+
+    /* Uncomment next line to debug DBus calls */
+    // QProcess::startDetached("/usr/bin/dbus-monitor");
 }
 
 void AccountPolldTest::init()
@@ -356,16 +359,20 @@ void AccountPolldTest::testPluginInput()
     QCOMPARE(input["auth"].toObject().toVariantMap(), expectedAuthData);
 }
 
+typedef QMap<QString, int> PushObjects;
+
 void AccountPolldTest::testWithoutAuthentication_data()
 {
     QTest::addColumn<QString>("plugins");
     QTest::addColumn<QString>("pluginReply");
+    QTest::addColumn<PushObjects>("pushObjects");
     QTest::addColumn<QStringList>("expectedAppIds");
     QTest::addColumn<QStringList>("expectedNotifications");
 
     QTest::newRow("no plugins") <<
         "{}" <<
         "{}" <<
+        PushObjects{} <<
         QStringList{} <<
         QStringList{};
 
@@ -388,6 +395,9 @@ void AccountPolldTest::testWithoutAuthentication_data()
         "    }\n"
         "  ]\n"
         "}" <<
+        PushObjects{
+            { "/com/ubuntu/Postal/mailer", 2 },
+        } <<
         QStringList{ "mailer" } <<
         QStringList{ "{\"message\":\"hello\"}", "{\"message\":\"second\"}" };
 }
@@ -396,6 +406,7 @@ void AccountPolldTest::testWithoutAuthentication()
 {
     QFETCH(QString, plugins);
     QFETCH(QString, pluginReply);
+    QFETCH(PushObjects, pushObjects);
     QFETCH(QStringList, expectedAppIds);
     QFETCH(QStringList, expectedNotifications);
 
@@ -424,7 +435,11 @@ void AccountPolldTest::testWithoutAuthentication()
     /* tell the poll plugin how to behave */
     writePluginConf(pluginReply, 0.1);
 
-    m_pushClient.mockedService().ClearCalls();
+    for (auto i = pushObjects.constBegin(); i != pushObjects.constEnd(); i++) {
+        m_pushClient.registerApp(i.key());
+        auto &pushObject = m_pushClient.mockedAppObject(i.key());
+        pushObject.ClearCalls();
+    }
 
     /* Start polling */
     QSignalSpy doneCalled(this, SIGNAL(pollDone()));
@@ -437,10 +452,13 @@ void AccountPolldTest::testWithoutAuthentication()
     QVERIFY(replyIsValid(call.reply()));
 
     /* Check that there are the expected notifications */
-    QTRY_COMPARE(m_pushClient.mockedService().GetMethodCalls("Post").value().count(),
-                 expectedNotifications.count());
-    QList<MethodCall> calls =
-        m_pushClient.mockedService().GetMethodCalls("Post");
+    QList<MethodCall> calls;
+    for (auto i = pushObjects.constBegin(); i != pushObjects.constEnd(); i++) {
+        auto &pushObject = m_pushClient.mockedAppObject(i.key());
+        QTRY_COMPARE(pushObject.GetMethodCalls("Post").value().count(),
+                     i.value());
+        calls += pushObject.GetMethodCalls("Post").value();
+    }
     QStringList appIds;
     QStringList notifications;
     for (const auto &call: calls) {

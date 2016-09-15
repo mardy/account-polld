@@ -31,3 +31,9 @@ def load(mock, parameters):
     mock.AddMethods(MAIN_SERVICE_IFACE, [
         ('Post', 'ss', '', 'ret = None'),
     ])
+
+@dbus.service.method(MOCK_IFACE, in_signature='s', out_signature='')
+def RegisterApp(self, path):
+    self.AddObject(path, MAIN_IFACE, {}, [
+        ('Post', 'ss', '', 'ret = None'),
+    ])

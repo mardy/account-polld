@@ -42,6 +42,17 @@ public:
                                      QDBusConnection::SessionBus);
     }
 
+    void registerApp(const QString &path) {
+        mockedService().call("RegisterApp", path);
+    }
+
+    OrgFreedesktopDBusMockInterface &mockedAppObject(const QString &path) {
+        return m_mock->mockInterface("com.ubuntu.Postal",
+                                     path,
+                                     "com.ubuntu.Postal",
+                                     QDBusConnection::SessionBus);
+    }
+
 private:
     QtDBusMock::DBusMock *m_mock;
 };
