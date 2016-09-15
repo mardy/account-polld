@@ -272,7 +272,7 @@ void AccountPolldTest::testNoAccounts()
     QSignalSpy doneCalled(this, SIGNAL(pollDone()));
     auto call = callPoll();
 
-    QVERIFY(doneCalled.wait());
+    QVERIFY(doneCalled.wait(10000));
     QCOMPARE(doneCalled.count(), 1);
 
     QVERIFY(call.isFinished());
