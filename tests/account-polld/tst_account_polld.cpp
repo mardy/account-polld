@@ -275,7 +275,7 @@ void AccountPolldTest::testNoAccounts()
     QVERIFY(doneCalled.wait(10000));
     QCOMPARE(doneCalled.count(), 1);
 
-    QVERIFY(call.isFinished());
+    QTRY_VERIFY(call.isFinished());
     QVERIFY(replyIsValid(call.reply()));
 
     /* Check that there are no notifications */
@@ -336,7 +336,7 @@ void AccountPolldTest::testPluginInput()
     QVERIFY(doneCalled.wait(10000));
     QCOMPARE(doneCalled.count(), 1);
 
-    QVERIFY(call.isFinished());
+    QTRY_VERIFY(call.isFinished());
     QVERIFY(replyIsValid(call.reply()));
 
     auto inputs = pluginInput();
@@ -448,7 +448,7 @@ void AccountPolldTest::testWithoutAuthentication()
     QVERIFY(doneCalled.wait(10000));
     QCOMPARE(doneCalled.count(), 1);
 
-    QVERIFY(call.isFinished());
+    QTRY_VERIFY(call.isFinished());
     QVERIFY(replyIsValid(call.reply()));
 
     /* Check that there are the expected notifications */
