@@ -15,7 +15,7 @@ Build-Depends: debhelper (>= 9),
                python3-xdg,
 Standards-Version: 3.9.5
 Homepage: https://launchpad.net/account-polld
-Vcs-Browser: http://bazaar.launchpad.net/~phablet-team/account-polld/trunk/files
+Vcs-Browser: http://bazaar.launchpad.net/~online-accounts/account-polld/trunk/files
 Vcs-Bzr: lp:account-polld
 
 Package: account-polld
