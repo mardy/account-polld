@@ -23,12 +23,9 @@ Architecture: any
 Depends: accountsservice,
          ${misc:Depends},
          ${shlibs:Depends},
+         account-polld-plugins-go,
 Built-Using: ${misc:Built-Using}
-Recommends: accountsservice,
-            account-polld-plugins-go
 Description: Poll daemon for notifications though the Ubuntu Push Client
- This component polls twitter and gmail for updates and
- communicates with the postal service provided by the ubuntu push client
- to expose notifications for the click webapps for the aforementioned
- services.
-X-Ubuntu-Use-Langpack: yes
+ This component polls remote services for updates and communicates with the
+ postal service provided by the ubuntu push client to expose notifications for
+ the click webapps for the aforementioned services.
