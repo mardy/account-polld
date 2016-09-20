@@ -22,14 +22,22 @@
 #include <QDBusConnection>
 #include <QProcessEnvironment>
 #include <QSettings>
+#include <signal.h>
 
 #include "debug.h"
 #include "poll_service.h"
 
 
+static void signalHandler(int)
+{
+    QCoreApplication::quit();
+}
+
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
+
+    signal(SIGTERM, signalHandler);
 
     QSettings settings("account-polld");
 
