@@ -1,0 +1,108 @@
+#!/usr/bin/python3
+# -*- python -*-
+"""Collect helpers hook data into a single json file"""
+
+import json
+import os
+import sys
+import time
+
+import xdg.BaseDirectory
+
+hook_ext = '.json'
+
+
+class HookProcessor:
+    def __init__(self):
+        self.xdg_data_home = xdg.BaseDirectory.xdg_data_home
+        self.xdg_data_dirs = xdg.BaseDirectory.xdg_data_dirs
+        self.plugins_data_path = os.path.join(self.xdg_data_home, 'account-polld',
+                                              'plugin_data.json')
+        self.plugins_data_path_tmp = os.path.join(self.xdg_data_home, 'account-polld',
+                                                  '.plugin_data_%s.tmp')
+        os.makedirs(os.path.join(self.xdg_data_home, 'account-polld'), exist_ok=True)
+
+
+    def write_plugin_data(self):
+        plugin_data = {}
+        for path in self.xdg_data_dirs:
+            data = self.collect_plugins(path)
+            plugin_data.update(data)
+
+        # write the collected data to a temp file and rename the original once
+        # everything is on disk
+        try:
+            tmp_filename = self.plugins_data_path_tmp % (time.time(),)
+            with open(tmp_filename, 'w') as dest:
+                json.dump(plugin_data, dest)
+                dest.flush()
+            os.rename(tmp_filename, self.plugins_data_path)
+        except Exception as e:
+            print('Writing file %s failed: %s' % (self.plugins_data_path, e), file=sys.stderr)
+            return False
+        return True
+
+
+    def collect_plugins(self, base_path):
+        trusted = False if base_path == self.xdg_data_home else True
+        hooks_path = os.path.join(base_path, 'account-polld', 'plugins')
+        plugins_data = {}
+        if not os.path.isdir(hooks_path):
+            return plugins_data
+        for hook_fname in os.listdir(hooks_path):
+            if not hook_fname.endswith(hook_ext):
+                continue
+            try:
+                with open(os.path.join(hooks_path, hook_fname), 'r') as fd:
+                    data = json.load(fd)
+            except Exception:
+                print('Unable to parse JSON from %s' % (hook_fname,), file=sys.stderr)
+                continue
+
+            helper_id = os.path.splitext(hook_fname)[0]
+            profile = 'unconfined' if trusted else helper_id
+            if helper_id.count('_') == 2:
+                helper_short_id = '_'.join(helper_id.split('_')[0:2])
+            else:
+                helper_short_id = helper_id
+
+            exec_path = data['exec']
+            if exec_path != "":
+                realpath = os.path.realpath(os.path.join(hooks_path,
+                                                         hook_fname))
+                exec_path = os.path.join(os.path.dirname(realpath), exec_path)
+            app_id = data.get('app_id', None)
+            if app_id is None:
+                # no app_id, use the package name from the helper_id
+                app_id = helper_short_id
+            elif app_id.count('_') >= 2:
+                # remove the version from the app_id
+                app_id = '_'.join(app_id.split('_')[0:2])
+            if not trusted:
+                # check that the plugin comes from the same package as the app
+                plugin_package = helper_id.split('_')[0]
+                app_package = app_id.split('_')[0]
+                if plugin_package != app_package:
+                    print('Skipping %s as it\'s unrelated to package %s' % (hook_fname, app_package), file=sys.stderr)
+                    continue
+
+            parsed = {
+                'exec': exec_path,
+                'appId': app_id,
+                'profile': profile,
+            }
+            parsed['needsAuthData'] = data.get('needs_authentication_data', False)
+            if 'service_ids' in data:
+                parsed['services'] = data['service_ids']
+            if 'interval' in data:
+                parsed['interval'] = data['interval']
+            plugins_data[helper_short_id] = parsed
+
+        return plugins_data
+
+
+if __name__ == "__main__":
+    processor = HookProcessor()
+    ok = processor.write_plugin_data()
+
+    sys.exit(0 if ok else 1)

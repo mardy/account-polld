@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<service id="coolmail">
+  <type>e-mail</type>
+  <name>Cool Mail</name>
+  <icon>general_myservice</icon>
+  <provider>cool</provider>
+
+  <template>
+    <group name="auth">
+      <setting name="method">oauth</setting>
+      <setting name="mechanism">HMAC-SHA1</setting>
+      <group name="oauth/HMAC-SHA1">
+        <setting name="host">coolmail.ex</setting>
+        <setting name="ConsumerKey">my-client-id</setting>
+        <setting name="ConsumerSecret">my-client-secret</setting>
+      </group>
+    </group>
+    <setting name="color">green</setting>
+    <setting name="auto-explode-after" type="u">10</setting>
+  </template>
+</service>
