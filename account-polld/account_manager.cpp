@@ -167,7 +167,7 @@ void AccountManagerPrivate::activateAccount(Accounts::AccountService *as,
                          [this,as,appKey](const SignOn::SessionData &reply) {
             as->deleteLater();
 
-            QVariantMap authReply = reply.toMap();
+            QVariantMap authReply = formatAuthReply(as->authData(), reply.toMap());
             AuthState &authState = m_authStates[accountServiceKey(as)];
             if (authState.needNewToken && authReply == authState.lastAuthReply) {
                 /* This account won't work, don't even check it */
@@ -176,8 +176,7 @@ void AccountManagerPrivate::activateAccount(Accounts::AccountService *as,
             }
 
             authState.needNewToken = false;
-            authState.lastAuthReply = authReply;
-            accountReady(as, appKey, formatAuthReply(as->authData(), authReply));
+            accountReady(as, appKey, authReply);
             operationFinished();
         });
         QObject::connect(authSession, &SignOn::AuthSession::error,

@@ -48,7 +48,11 @@ def get_identity(self, identity):
     return (path, self.identities[identity])
 
 
-def auth_session_process(identity, params, method):
+def auth_session_process(self, params, method):
+    auth_service = dbusmock.get_object(MAIN_OBJ)
+    if self.identity in auth_service.auth_replies:
+        return auth_service.auth_replies[self.identity]
+
     if 'errorName' in params:
         raise dbus.exceptions.DBusException('Authentication error',
                                             name=params['errorName'])
@@ -63,7 +67,7 @@ def get_auth_session_object_path(self, identity, method):
     path = '/AuthSession%s' % self.sessions_counter
     self.sessions_counter += 1
     self.AddObject(path, AUTH_SESSION_IFACE, {}, [
-        ('process', 'a{sv}s', 'a{sv}', 'ret = self.auth_session_process(self.identity, args[0], args[1])'),
+        ('process', 'a{sv}s', 'a{sv}', 'ret = self.auth_session_process(self, args[0], args[1])'),
     ])
 
     auth_session = dbusmock.get_object(path)
@@ -90,4 +94,8 @@ def load(mock, parameters):
 @dbus.service.method(MOCK_IFACE, in_signature='ua{sv}', out_signature='')
 def AddIdentity(self, identity, data):
     self.identities[identity] = data
+
+@dbus.service.method(MOCK_IFACE, in_signature='ua{sv}', out_signature='')
+def SetNextReply(self, identity, reply):
+    self.auth_replies[identity] = reply
 

@@ -40,6 +40,7 @@
 using namespace QtDBusMock;
 
 namespace QTest {
+
 template<>
 char *toString(const QSet<QString> &set)
 {
@@ -49,6 +50,15 @@ char *toString(const QSet<QString> &set)
     ba += ")";
     return qstrdup(ba.data());
 }
+
+template<>
+char *toString(const QVariantMap &p)
+{
+    QJsonDocument doc(QJsonObject::fromVariantMap(p));
+    QByteArray ba = doc.toJson(QJsonDocument::Compact);
+    return qstrdup(ba.data());
+}
+
 } // QTest namespace
 
 
@@ -75,6 +85,7 @@ private Q_SLOTS:
     void testPluginInput();
     void testWithoutAuthentication_data();
     void testWithoutAuthentication();
+    void testAuthenticationFailure();
 
 Q_SIGNALS:
     void pollDone();
@@ -468,6 +479,120 @@ void AccountPolldTest::testWithoutAuthentication()
     }
     QCOMPARE(appIds.toSet(), expectedAppIds.toSet());
     QCOMPARE(notifications.toSet(), expectedNotifications.toSet());
+}
+
+void AccountPolldTest::testAuthenticationFailure()
+{
+    /* prepare accounts */
+    Accounts::Manager manager;
+    Accounts::Service coolShare = manager.service("com.ubuntu.tests_coolshare");
+    Accounts::Service coolMail = manager.service("coolmail");
+
+    uint credentialsId = 45;
+
+    Accounts::Account *account = manager.createAccount("cool");
+    account->setDisplayName("account 0");
+    account->setCredentialsId(credentialsId);
+    account->setEnabled(true);
+    account->selectService(coolMail);
+    account->setEnabled(true);
+    account->syncAndBlock();
+
+    m_signond.addIdentity(credentialsId, QVariantMap());
+    QVariantMap signondReply {
+        { "AccessToken", "one token" },
+        { "TokenSecret", "and its secret" },
+    };
+    m_signond.setNextReply(credentialsId, signondReply);
+
+    /* write plugins json file */
+    writePluginsFile(QString(
+        "{"
+        "  \"mail_helper\": {\n"
+        "    \"appId\": \"mailer\",\n"
+        "    \"exec\": \"" PLUGIN_EXECUTABLE "\",\n"
+        "    \"needsAuthData\": true,\n"
+        "    \"profile\": \"unconfined\"\n"
+        "  }\n"
+        "}"));
+
+    /* tell the poll plugin how to behave */
+    writePluginConf("{ \"error\": { \"code\": \"ERR_INVALID_AUTH\" } }", 0.01);
+
+    /* Start polling */
+    QSignalSpy doneCalled(this, SIGNAL(pollDone()));
+    auto call = callPoll();
+
+    QVERIFY(doneCalled.wait(10000));
+    QCOMPARE(doneCalled.count(), 1);
+
+    QTRY_VERIFY(call.isFinished());
+    QVERIFY(replyIsValid(call.reply()));
+
+    auto inputs = pluginInput();
+    QCOMPARE(inputs.count(), 1);
+
+    QVariantMap expectedAuthData {
+        { "AccessToken", "one token" },
+        { "TokenSecret", "and its secret" },
+        { "ClientId", "my-client-id" },
+        { "ClientSecret", "my-client-secret" },
+    };
+
+    QJsonObject input = inputs[0];
+    QCOMPARE(input["accountId"].toInt(), int(account->id()));
+    QCOMPARE(input["appId"].toString(), QString("mailer"));
+    QCOMPARE(input["helperId"].toString(), QString("mail_helper"));
+    QCOMPARE(input["auth"].toObject().toVariantMap(), expectedAuthData);
+    doneCalled.clear();
+
+    /* Now try again: given that we get the same reply from signond, we
+     * shouldn't even try running the plugin */
+    call = callPoll();
+
+    QVERIFY(doneCalled.wait(10000));
+    QCOMPARE(doneCalled.count(), 1);
+
+    QTRY_VERIFY(call.isFinished());
+    QVERIFY(replyIsValid(call.reply()));
+
+    inputs = pluginInput();
+    QCOMPARE(inputs.count(), 1);
+    doneCalled.clear();
+
+    /* Try again, but this time alter the signond reply */
+    signondReply = QVariantMap {
+        { "AccessToken", "another token" },
+        { "TokenSecret", "and another secret" },
+    };
+    m_signond.setNextReply(credentialsId, signondReply);
+    account->selectService(coolMail);
+    account->setValue("oauth/HMAC-SHA1/ConsumerKey", "new key");
+    account->syncAndBlock();
+
+    call = callPoll();
+
+    QVERIFY(doneCalled.wait(10000));
+    QCOMPARE(doneCalled.count(), 1);
+
+    QTRY_VERIFY(call.isFinished());
+    QVERIFY(replyIsValid(call.reply()));
+
+    inputs = pluginInput();
+    QCOMPARE(inputs.count(), 2);
+
+    expectedAuthData = QVariantMap {
+        { "AccessToken", "another token" },
+        { "TokenSecret", "and another secret" },
+        { "ClientId", "my-client-id" },
+        { "ClientSecret", "my-client-secret" },
+    };
+
+    input = inputs[1];
+    QCOMPARE(input["accountId"].toInt(), int(account->id()));
+    QCOMPARE(input["appId"].toString(), QString("mailer"));
+    QCOMPARE(input["helperId"].toString(), QString("mail_helper"));
+    QCOMPARE(input["auth"].toObject().toVariantMap(), expectedAuthData);
 }
 
 QTEST_GUILESS_MAIN(AccountPolldTest);

@@ -37,6 +37,10 @@ public:
         mockedAuthService().call("AddIdentity", id, info);
     }
 
+    void setNextReply(uint identity, const QVariantMap &reply) {
+        mockedAuthService().call("SetNextReply", identity, reply);
+    }
+
 private:
     OrgFreedesktopDBusMockInterface &mockedAuthService() {
         return m_mock->mockInterface("com.google.code.AccountsSSO.SingleSignOn",
