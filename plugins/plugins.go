@@ -27,10 +27,6 @@ import (
 
 	"launchpad.net/account-polld/accounts"
 	"launchpad.net/go-xdg/v0"
-
-	"strings"
-	"launchpad.net/go-dbus/v1"
-	"log"
 )
 
 func init() {
@@ -71,7 +67,7 @@ func NewStandardPushMessage(summary, body, action, icon string, epoch int64) *Pu
 				Popup:     true,
 				Persist:   true,
 			},
-			Sound:   DefaultSound(),
+			Sound:   true,
 			Vibrate: true,
 			Tag:     cmdName,
 		},
@@ -110,7 +106,7 @@ type PushMessage struct {
 type Notification struct {
 	// Sound (optional) is the path to a sound file which can or
 	// cannot be played depending on user preferences.
-	Sound string `json:"sound,omitempty"`
+	Sound bool `json:"sound,omitempty"`
 	// Card represents a specific bubble to give to the user
 	Card *Card `json:"card,omitempty"`
 	// Vibrate is the haptic feedback part of a notification.
@@ -234,79 +230,4 @@ func FromPersist(pluginName string, accountId uint, data interface{}) (err error
 	}
 
 	return nil
-}
-
-// DefaultSound returns the path to the default sound for a Notification
-func DefaultSound() string {
-	/* Connect to dbus to get incoming message sound path, defaults to Blip
-	 * on error */
-	var (
-		err error
-		conn *dbus.Connection
-		ret string
-		dbusPath dbus.ObjectPath
-	)
-
-	// Connect to dbus system bus
-	if conn, err = dbus.Connect(dbus.SystemBus); err != nil {
-		log.Print("Could not connect to dbus system bus:", err)
-	} else {
-		// Get current user org.freedesktop.Accounts node path
-		obj := conn.Object("org.freedesktop.Accounts", "/org/freedesktop/Accounts")
-		reply, err := obj.Call("org.freedesktop.Accounts",
-							   "FindUserById",
-							   int64(os.Getuid()))
-		if err != nil {
-			log.Print("Could not call org.freedesktop.Accounts.FindUserById dbus method: ", err)
-		} else {
-			if err := reply.Args(&dbusPath); err != nil {
-				log.Print("Could not parse org.freedesktop.Accounts.FindUserById dbus reply: ", err)
-			}
-		}
-
-		if dbusPath != "" {
-			// Get message sound path from AccountsService
-			obj := conn.Object("org.freedesktop.Accounts", dbusPath)
-			reply, err := obj.Call("org.freedesktop.DBus.Properties",
-								   "Get",
-								   "com.ubuntu.touch.AccountsService.Sound",
-								   "IncomingMessageSound")
-			if err != nil {
-				log.Print("Could not get IncomingMessageSound property: ", err)
-			} else {
-				var dbusReply dbus.Variant
-				if err := reply.Args(&dbusReply); err != nil {
-					log.Print("Could not parse IncomingMessageSound property: ", err)
-				} else {
-					var soundPath string
-					soundPath = dbusReply.Value.(string)
-
-					/* Set the default sound to a path relative to an
-					 * XDG_DATA_DIRS as the push client searches within those
-					 * paths, sounds in other paths don't work */
-					for _, basePath := range xdg.Data.Dirs() {
-						if relPath, err := filepath.Rel(basePath, soundPath); err == nil {
-							if strings.Index(relPath, "../") != 0 {
-								ret = relPath
-							}
-						} else {
-							err = nil
-						}
-					}
-
-					if filepath.IsAbs(ret) {
-						log.Print("Could not use incoming message path sound as it is not inside XDG_DATA_DIRS paths: ", ret)
-						ret = ""
-					}
-				}
-			}
-		}
-	}
-
-	if ret == "" {
-		// path is searched within XDG_DATA_DIRS
-		ret = "sounds/ubuntu/notifications/Blip.ogg"
-	}
-
-	return ret
 }
