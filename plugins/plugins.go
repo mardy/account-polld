@@ -67,7 +67,7 @@ func NewStandardPushMessage(summary, body, action, icon string, epoch int64) *Pu
 				Popup:     true,
 				Persist:   true,
 			},
-			Sound:   DefaultSound(),
+			Sound:   true,
 			Vibrate: true,
 			Tag:     cmdName,
 		},
@@ -104,9 +104,8 @@ type PushMessage struct {
 // Notification (optional) describes the user-facing notifications
 // triggered by this push message.
 type Notification struct {
-	// Sound (optional) is the path to a sound file which can or
-	// cannot be played depending on user preferences.
-	Sound string `json:"sound,omitempty"`
+	// Whether to play sound. Users can disable this so don’t rely on it exclusively.
+	Sound bool `json:"sound,omitempty"`
 	// Card represents a specific bubble to give to the user
 	Card *Card `json:"card,omitempty"`
 	// Vibrate is the haptic feedback part of a notification.
@@ -230,10 +229,4 @@ func FromPersist(pluginName string, accountId uint, data interface{}) (err error
 	}
 
 	return nil
-}
-
-// DefaultSound returns the path to the default sound for a Notification
-func DefaultSound() string {
-	// path is searched within XDG_DATA_DIRS
-	return "sounds/ubuntu/notifications/Blip.ogg"
 }
