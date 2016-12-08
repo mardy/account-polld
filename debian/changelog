@@ -1,3 +1,11 @@
+account-polld (0.1+17.04.20161208-0ubuntu1) zesty; urgency=medium
+
+  [ Devid Antonio Filoni ]
+  * Use bool sound value to patch and fix bug #1481202 properly (LP:
+    #1481202)
+
+ -- Jonas G. Drange <jonas.drange@canonical.com>  Thu, 08 Dec 2016 13:40:10 +0000
+
 account-polld (0.1+16.10.20160804-0ubuntu1) yakkety; urgency=medium
 
   * Implement the caldav plugin to query for changes on caldav sources.
