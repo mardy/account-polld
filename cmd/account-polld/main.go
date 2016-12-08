@@ -201,7 +201,7 @@ func postOffice(bus *dbus.Connection, postWatch chan *PostWatch) {
 				// Play sound and vibrate on first notif only.
 				if i > 0 {
 					n.Notification.Vibrate = false
-					n.Notification.Sound = ""
+					n.Notification.Sound = false
 				}
 
 				// We're overflowing, so no popups.
