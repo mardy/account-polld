@@ -3,22 +3,19 @@ Section: net
 Priority: optional
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 Build-Depends: debhelper (>= 9),
-               dh-golang,
                dh-translations,
-               golang-go,
-               golang-go-dbus-dev,
-               golang-go-xdg-dev,
-               golang-gocheck-dev,
-               golang-ubuntu-push-dev,
-               libaccounts-glib-dev,
-               libclick-0.4-dev,
-               libsignon-glib-dev,
+               libaccounts-qt5-dev,
+               libqtdbusmock1-dev,
+               libqtdbustest1-dev,
+               libsignon-qt5-dev,
+               pkg-config,
                qt5-default,
                qtbase5-dev,
-               qtpim5-dev,
+               python3,
+               python3-xdg,
 Standards-Version: 3.9.5
 Homepage: https://launchpad.net/account-polld
-Vcs-Browser: http://bazaar.launchpad.net/~phablet-team/account-polld/trunk/files
+Vcs-Browser: http://bazaar.launchpad.net/~online-accounts/account-polld/trunk/files
 Vcs-Bzr: lp:account-polld
 
 Package: account-polld
@@ -27,10 +24,8 @@ Depends: accountsservice,
          ${misc:Depends},
          ${shlibs:Depends},
 Built-Using: ${misc:Built-Using}
-Recommends: accountsservice,
+Recommends: account-polld-plugins-go,
 Description: Poll daemon for notifications though the Ubuntu Push Client
- This component polls twitter and gmail for updates and
- communicates with the postal service provided by the ubuntu push client
- to expose notifications for the click webapps for the aforementioned
- services.
-X-Ubuntu-Use-Langpack: yes
+ This component polls remote services for updates and communicates with the
+ postal service provided by the ubuntu push client to expose notifications for
+ the click webapps for the aforementioned services.

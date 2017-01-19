@@ -1,0 +1,4 @@
+Pattern: ${home}/.local/share/account-polld/plugins/${id}.json
+User-Level: yes
+Hook-Name: account-polld
+Exec: $${hook_helper.path}/$${hook_helper.files}
