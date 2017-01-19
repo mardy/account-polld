@@ -1,3 +1,9 @@
+account-polld (0.1+17.04.20170119-0ubuntu1) zesty; urgency=medium
+
+  * Support out-of-process plugins
+
+ -- Alberto Mardegan <mardy@users.sourceforge.net>  Thu, 19 Jan 2017 12:05:06 +0000
+
 account-polld (0.1+16.10.20160804-0ubuntu1) yakkety; urgency=medium
 
   * Implement the caldav plugin to query for changes on caldav sources.
