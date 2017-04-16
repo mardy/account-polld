@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<application id="mailer">
+  <description>Mailer application</description>
+  <translations>mailer-catalog</translations>
+  <desktop-entry>mailer.desktop</desktop-entry>
+
+  <services>
+    <service id="coolmail">
+      <description>Mailer uses coolmail</description>
+    </service>
+  </services>
+</application>
