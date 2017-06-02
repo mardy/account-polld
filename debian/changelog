@@ -1,3 +1,9 @@
+account-polld (0.2-0ubuntu1) vivid; urgency=medium
+
+  * Rewrite deamon: move plugins into separate processes, started on demand.
+
+ -- Alberto Mardegan <mardy@users.sourceforge.net>  Fri, 02 Jun 2017 16:58:36 +0300
+
 account-polld (0.1+16.10.20160804-0ubuntu1) yakkety; urgency=medium
 
   * Implement the caldav plugin to query for changes on caldav sources.
